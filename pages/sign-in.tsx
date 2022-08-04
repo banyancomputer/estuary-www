@@ -7,6 +7,26 @@ import * as R from '@common/requests';
 import * as Flags from '@common/flags';
 import * as Crypto from '@common/crypto';
 
+/* Wallet Sign In */
+import WalletConnect from '@walletconnect/web3-provider';
+import { ethers } from 'ethers';
+import { SiweMessage } from 'siwe';
+
+declare global {
+  interface Window {
+    ethereum: { request: (opt: {method: string}) => Promise<Array<string>> };
+    web3: unknown;
+  }
+}
+
+const enum Providers {
+  METAMASK = 'metamask',
+  WALLET_CONNECT = 'walletconnect',
+}
+
+let metamask = undefined;
+let walletconnect: WalletConnect;
+
 import Cookies from 'js-cookie';
 import Page from '@components/Page';
 import Navigation from '@components/Navigation';
@@ -55,6 +75,7 @@ async function handleTokenAuthenticate(state: any, host) {
   return response;
 }
 async function handleSignIn(state: any, host) {
+  let provider = ethers.providers.Web3Provider;
 
   if (U.isEmpty(state.username)) {
     return { error: 'Please provide a username.' };
@@ -136,8 +157,6 @@ async function handleSignIn(state: any, host) {
   return;
 }
 
-
-
 function SignInPage(props: any) {
 
 
@@ -147,68 +166,95 @@ function SignInPage(props: any) {
   const authScenario = null;
   const signIn = null;
 
+  /* TODO: Figure out UI layout */
   return (
-    <Page title="Estuary: Sign in" description="Sign in to your Estuary account." url={`${props.hostname}/sign-in`}>
+    <Page title="Banyan: Sign in" description="Sign in with your Crypto Wallet." url={`${props.hostname}/sign-in`}>
       <Navigation active="SIGN_IN" />
       <SingleColumnLayout style={{ maxWidth: 488 }}>
         <H2>Sign in</H2>
 
-        <P style={{ marginTop: 16 }}>If you have created an account with Estuary before, you can use your username and password to sign in.</P>
-        <H4 style={{ marginTop: 32 }}>Username</H4>
-        <Input
-          style={{ marginTop: 8 }}
-          placeholder="Your account's username"
-          name="username"
-          value={state.username}
-          onChange={(e) => setState({ ...state, [e.target.name]: e.target.value })}
-        />
+        <P style={{ marginTop: 16 }}>You can use your Crypto Wallet to sing in!</P>
+        {/*<H4 style={{ marginTop: 32 }}>Username</H4>*/}
+        {/*<Input*/}
+        {/*  style={{ marginTop: 8 }}*/}
+        {/*  placeholder="Your account's username"*/}
+        {/*  name="username"*/}
+        {/*  value={state.username}*/}
+        {/*  onChange={(e) => setState({ ...state, [e.target.name]: e.target.value })}*/}
+        {/*/>*/}
 
-        <H4 style={{ marginTop: 24 }}>Password</H4>
-        <Input
-          style={{ marginTop: 8 }}
-          placeholder="Your account's password"
-          type="password"
-          value={state.password}
-          name="password"
-          onChange={(e) => setState({ ...state, [e.target.name]: e.target.value })}
-          onSubmit={async () => {
-            setState({ ...state, loading: true });
-            const response = await handleSignIn(state, props.api);
-            if (response && response.error) {
-              alert(response.error);
-              setState({ ...state, loading: false });
-            }
-          }}
-        />
+        {/*<H4 style={{ marginTop: 24 }}>Password</H4>*/}
+        {/*<Input*/}
+        {/*  style={{ marginTop: 8 }}*/}
+        {/*  placeholder="Your account's password"*/}
+        {/*  type="password"*/}
+        {/*  value={state.password}*/}
+        {/*  name="password"*/}
+        {/*  onChange={(e) => setState({ ...state, [e.target.name]: e.target.value })}*/}
+        {/*  onSubmit={async () => {*/}
+        {/*    setState({ ...state, loading: true });*/}
+        {/*    const response = await handleSignIn(state, props.api);*/}
+        {/*    if (response && response.error) {*/}
+        {/*      alert(response.error);*/}
+        {/*      setState({ ...state, loading: false });*/}
+        {/*    }*/}
+        {/*  }}*/}
+        {/*/>*/}
 
         <div className={styles.actions}>
+            {/*/!*TODO: Figure out how to control whether this is rendered *!/*/}
+            {/*/!*TODO: NextJs Can only access `window.ethereum` in the browser*!/*/}
+            <Button
+              style={{ width: '100%' }}
+              loading={state.loading ? state.loading : undefined}
+              onClick={async () => {
+                // If we metamask is available, we can use it to sign in.
+                if (window.ethereum) {
+                  setState({...state, loading: true});
+                  const response = await handleSignIn(state, props.api);
+                  if (response && response.error) {
+                    alert(response.error);
+                    setState({...state, loading: false});
+                  }
+                } else {
+                  alert('Please install MetaMask to sign in.');
+                }
+              }}
+            >
+              Sign in with MetaMask
+            </Button>
+
           <Button
-            style={{ width: '100%' }}
-            loading={state.loading ? state.loading : undefined}
-            onClick={async () => {
-              setState({ ...state, loading: true });
-              const response = await handleSignIn(state, props.api);
-              if (response && response.error) {
-                alert(response.error);
-                setState({ ...state, loading: false });
-              }
-            }}
+              style={{ width: '100%', marginTop: 8 }}
+              onClick={async () => {
+                setState({ ...state, loading: true });
+                const response = await handleSignIn(state, props.api);
+                if (response && response.error) {
+                  alert(response.error);
+                  setState({ ...state, loading: false });
+                }
+              }}
           >
-            Sign in
+            Sign in with WalletConnect
           </Button>
-          <Button
-            style={{
-              width: '100%',
-              marginTop: 12,
-              background: 'var(--main-button-background-secondary)',
-              color: 'var(--main-button-text-secondary)',
-            }}
-            href="/sign-up"
-          >
-            Create an account instead
-          </Button>
+
+          {/* TODO: Point to resource for creating a wallet*/}
+          {/*<Button*/}
+          {/*  style={{*/}
+          {/*    width: '100%',*/}
+          {/*    marginTop: 12,*/}
+          {/*    background: 'var(--main-button-background-secondary)',*/}
+          {/*    color: 'var(--main-button-text-secondary)',*/}
+          {/*  }}*/}
+          {/*  href="/sign-up"*/}
+          {/*>*/}
+          {/*  Create an account instead*/}
+          {/*</Button>*/}
         </div>
 
+        {/*TODO: Remove, we're not supporting Key Authentication */}
+        {/*TODO: Determine if we still want to allow people to register wallets with an API key*/}
+        {/*TODO: I assume that would be a good feature to have*/}
         <H3 style={{ marginTop: 32 }}>Authenticate Using Key</H3>
         <P style={{ marginTop: 8 }}>You can authenticate using an API key if you have one.</P>
 

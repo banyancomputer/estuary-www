@@ -3,6 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/estuary-www.iml" filepath="$PROJECT_DIR$/.idea/estuary-www.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../siwe-notepad/.idea/siwe-notepad.iml" filepath="$PROJECT_DIR$/../siwe-notepad/.idea/siwe-notepad.iml" />
     </modules>
   </component>
 </project>
