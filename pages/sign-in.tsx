@@ -128,7 +128,9 @@ async function handleWalletSignIn(state: any, host, connector: Providers) {
    * Gets a nonce from our backend, this will add this nonce to the session so
    * we can check it on sign in.
    */
-  const nonce = await fetch('/api/nonce', { credentials: 'include' }).then((res) => res.text());
+  const nonce = await fetch(`${host}/nonce`, { credentials: 'include' }).then((res) => res.text());
+  // Log the received Nonce from the session
+  console.log(nonce);
 
   /**
    * Creates the message object
@@ -148,102 +150,31 @@ async function handleWalletSignIn(state: any, host, connector: Providers) {
    */
   const signature = await provider.getSigner().signMessage(message.prepareMessage());
 
-  // /**
-  //  * Calls our sign_in endpoint to validate the message, if successful it will
-  //  * save the message in the session and allow the user to store his text
-  //  */
-  // let r = await fetch(`${host}/login`, {
-  //   method: 'POST',
-  //   body: JSON.stringify({ message, ens, signature }),
-  //   headers: {
-  //     'Content-Type': 'application/json',
-  //   },
-  //   credentials: 'include'
-  // });
-
-  fetch(`/api/sign_in`, {
+  /**
+   * Calls our login endpoint to validate the message, if successful it will
+   * save the message in the session and allow the user to store his text
+   */
+  fetch(`${host}/login`, {
     method: 'POST',
     body: JSON.stringify({ message, ens, signature }),
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
-  }).then(async (res) => {
-    if (res.status === 200) {
-      res.json().then(({ text, address, ens }) => {
-        connectedState(text, address, ens);
-        return;
-      });
-    } else {
-      res.json().then((err) => {
-        console.error(err);
-      });
-    }
-  });
-
-  ////////////////////////////////////////////////////////////////////////////////
-
-  let r = await fetch(`${host}/login`, {
-    method: 'POST',
-    body: JSON.stringify({ passwordHash: state.passwordHash, username: state.username }),
     headers: {
       'Content-Type': 'application/json',
     },
-  });
-
-  if (r.status !== 200) {
-    // NOTE(jim): We don't know the users password ever so we can't do anything on their
-    // behalf, but if they were authenticated using the old method, we can do one more retry.
-    const retryHash = await Crypto.attemptHash(state.password);
-
-    let retry = await fetch(`${host}/login`, {
-      method: 'POST',
-      body: JSON.stringify({ passwordHash: retryHash, username: state.username }),
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (retry.status !== 200) {
-      return { error: 'Failed to authenticate' };
-    }
-
-    const retryJSON = await retry.json();
-    if (retryJSON.error) {
-      return retryJSON;
-    }
-
-    if (!retryJSON.token) {
-      return { error: 'Failed to authenticate' };
-    }
-
-    console.log('Authenticated using legacy scheme.');
-
-    Cookies.set(C.auth, retryJSON.token);
-
-    console.log('Attempting legacy scheme revision on your behalf');
-
-    try {
-      const response = await R.put('/user/password', { newPasswordHash: state.passwordHash }, host);
-    } catch (e) {
-      console.log('Failure:', e);
-    }
-
-    window.location.href = '/home';
-    return;
-  }
-
-  const j = await r.json();
-  if (j.error) {
-    return j;
-  }
-
-  if (!j.token) {
-    return { error: 'Failed to authenticate' };
-  }
-
-  console.log('Authenticated using advanced scheme.');
-  Cookies.set(C.auth, j.token);
-  window.location.href = '/home';
-  return;
+    credentials: 'include'
+  }).then((res) => {
+    if (res.status === 200) {
+      res.json().then((data) => {
+        console.log(data);
+        console.log('Authenticated SIWE scheme.');
+        Cookies.set(C.auth, data.token);
+        window.location.href = '/home';
+        return;
+      }
+    )} else {
+      res.json().then((err) => {
+        console.error(err);
+      });
+  }});
 }
 
 /*
