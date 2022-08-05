@@ -58,6 +58,10 @@ export async function getServerSideProps(context) {
   };
 }
 
+/*
+  Handles Authenticating a User with an API Token
+  Routes directly to /user/stats, and is validated by middleware
+ */
 async function handleTokenAuthenticate(state: any, host) {
   let response = await fetch(`${host}/user/stats`, {
     method: 'GET',
@@ -74,7 +78,179 @@ async function handleTokenAuthenticate(state: any, host) {
   }
   return response;
 }
-async function handleSignIn(state: any, host) {
+
+/*
+  Handle Sign In with a Crypto Wallet
+  This should support logic for all login Providers
+ */
+async function handleWalletSignIn(state: any, host, connector: Providers) {
+  let provider: ethers.providers.Web3Provider;
+
+  /**
+   * Connects to the wallet and starts a etherjs provider.
+   */
+  if (connector === 'metamask') {
+    await metamask.request({
+      method: 'eth_requestAccounts',
+    });
+    provider = new ethers.providers.Web3Provider(metamask);
+  } else {
+    /**
+     * The Infura ID provided just for the sake of the demo, you'll need to replace
+     * it if you want to go to production.
+     */
+    walletconnect = new WalletConnect({
+      // TODO - replace with your own Infura ID
+      infuraId: '8fcacee838e04f31b6ec145eb98879c8',
+    });
+    walletconnect.enable();
+    provider = new ethers.providers.Web3Provider(walletconnect);
+  }
+
+  // Get the user's address
+  const [address] = await provider.listAccounts();
+  if (!address) {
+    throw new Error('Address not found.');
+  }
+
+  /**
+   * Try to resolve address ENS and updates the title accordingly.
+   */
+  let ens: string;
+  try {
+    ens = await provider.lookupAddress(address);
+  } catch (error) {
+    console.error(error);
+  }
+
+  /**
+   * TODO: Implement Passing back a nonce
+   * Gets a nonce from our backend, this will add this nonce to the session so
+   * we can check it on sign in.
+   */
+  const nonce = await fetch('/api/nonce', { credentials: 'include' }).then((res) => res.text());
+
+  /**
+   * Creates the message object
+   */
+  const message = new SiweMessage({
+    domain: document.location.host,
+    address,
+    chainId: await provider.getNetwork().then(({ chainId }) => chainId),
+    uri: document.location.origin,
+    version: '1',
+    statement: 'Banyan Estuary Login',
+    nonce,
+  });
+
+  /**
+   * Generates the message to be signed and uses the provider to ask for a signature
+   */
+  const signature = await provider.getSigner().signMessage(message.prepareMessage());
+
+  // /**
+  //  * Calls our sign_in endpoint to validate the message, if successful it will
+  //  * save the message in the session and allow the user to store his text
+  //  */
+  // let r = await fetch(`${host}/login`, {
+  //   method: 'POST',
+  //   body: JSON.stringify({ message, ens, signature }),
+  //   headers: {
+  //     'Content-Type': 'application/json',
+  //   },
+  //   credentials: 'include'
+  // });
+
+  fetch(`/api/sign_in`, {
+    method: 'POST',
+    body: JSON.stringify({ message, ens, signature }),
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+  }).then(async (res) => {
+    if (res.status === 200) {
+      res.json().then(({ text, address, ens }) => {
+        connectedState(text, address, ens);
+        return;
+      });
+    } else {
+      res.json().then((err) => {
+        console.error(err);
+      });
+    }
+  });
+
+  ////////////////////////////////////////////////////////////////////////////////
+
+  let r = await fetch(`${host}/login`, {
+    method: 'POST',
+    body: JSON.stringify({ passwordHash: state.passwordHash, username: state.username }),
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (r.status !== 200) {
+    // NOTE(jim): We don't know the users password ever so we can't do anything on their
+    // behalf, but if they were authenticated using the old method, we can do one more retry.
+    const retryHash = await Crypto.attemptHash(state.password);
+
+    let retry = await fetch(`${host}/login`, {
+      method: 'POST',
+      body: JSON.stringify({ passwordHash: retryHash, username: state.username }),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (retry.status !== 200) {
+      return { error: 'Failed to authenticate' };
+    }
+
+    const retryJSON = await retry.json();
+    if (retryJSON.error) {
+      return retryJSON;
+    }
+
+    if (!retryJSON.token) {
+      return { error: 'Failed to authenticate' };
+    }
+
+    console.log('Authenticated using legacy scheme.');
+
+    Cookies.set(C.auth, retryJSON.token);
+
+    console.log('Attempting legacy scheme revision on your behalf');
+
+    try {
+      const response = await R.put('/user/password', { newPasswordHash: state.passwordHash }, host);
+    } catch (e) {
+      console.log('Failure:', e);
+    }
+
+    window.location.href = '/home';
+    return;
+  }
+
+  const j = await r.json();
+  if (j.error) {
+    return j;
+  }
+
+  if (!j.token) {
+    return { error: 'Failed to authenticate' };
+  }
+
+  console.log('Authenticated using advanced scheme.');
+  Cookies.set(C.auth, j.token);
+  window.location.href = '/home';
+  return;
+}
+
+/*
+  Handles sign in with a username and password
+  I don't think we plan on supporting that workflow, but I'll keep the definition around
+ */
+async function handleSignIn(state: any, host, connector: Providers) {
   let provider = ethers.providers.Web3Provider;
 
   if (U.isEmpty(state.username)) {
@@ -211,7 +387,7 @@ function SignInPage(props: any) {
                 // If we metamask is available, we can use it to sign in.
                 if (window.ethereum) {
                   setState({...state, loading: true});
-                  const response = await handleSignIn(state, props.api);
+                  const response = await handleSignIn(state, props.api, Providers.METAMASK);
                   if (response && response.error) {
                     alert(response.error);
                     setState({...state, loading: false});
@@ -228,7 +404,7 @@ function SignInPage(props: any) {
               style={{ width: '100%', marginTop: 8 }}
               onClick={async () => {
                 setState({ ...state, loading: true });
-                const response = await handleSignIn(state, props.api);
+                const response = await handleSignIn(state, props.api, Providers.WALLET_CONNECT);
                 if (response && response.error) {
                   alert(response.error);
                   setState({ ...state, loading: false });
