@@ -47,6 +47,7 @@ function getAPIHost(): string {
 
   switch (process.env.NODE_ENV) {
     case 'production':
+      // TODO: Configure to point to our acutal production API
       return 'https://api.estuary.tech';
     default:
       return 'http://localhost:3004';

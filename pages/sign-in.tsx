@@ -81,24 +81,47 @@ async function handleTokenAuthenticate(state: any, host) {
 
 /*
   Handle Sign In with a Crypto Wallet
-  This should support logic for all login Providers
+  This should support logic for all login Providers.
+  References to MetaMask extensions must be passed in as a prop.
  */
-async function handleWalletSignIn(state: any, host, connector: Providers) {
-  let provider: ethers.providers.Web3Provider;
+async function handleSiweLogin(state: any, host, connector: Providers, _metamask: any = undefined) {
+  console.log("Handling Siwe Login");
+
+  /*
+   * Fetch a new nonce from the Estuary backend in order to use it for the Siwe message
+   * This nonce is kept in a short-lived (5 min) session on the Estuary backend
+   * The Request needs to succeed within that period of time.
+   */
+  const nonce = await fetch(`${host}/nonce`, {
+    mode: 'cors',
+    headers: {
+      'Access-Control-Allow-Origin': `http://${host}`,
+      'Access-Control-Allow-Credentials': 'true'
+    },
+    method: 'GET',
+    credentials: 'include',
+  }).then((res) => res.text().then((text) => {
+        // TODO: Figure out why Estuary handleNonce gives us this messed up format
+        // Remove any non-aplha-numeric characters from the nonce
+        return text.replace(/[^a-zA-Z0-9]/g, '');
+      }
+  ));
+
+  console.log(" - Received nonce: ", nonce);
+
 
   /**
-   * Connects to the wallet and starts a etherjs provider.
+   * Connect to a user's wallet and start an etherjs provider.
    */
+  let provider: ethers.providers.Web3Provider;
+
   if (connector === 'metamask') {
-    await metamask.request({
+    await _metamask.request({
       method: 'eth_requestAccounts',
     });
-    provider = new ethers.providers.Web3Provider(metamask);
+    // Fun fact: MetaMask also uses infura for its RPC: we should maybe use the same Infura for all providers
+    provider = new ethers.providers.Web3Provider(_metamask);
   } else {
-    /**
-     * The Infura ID provided just for the sake of the demo, you'll need to replace
-     * it if you want to go to production.
-     */
     walletconnect = new WalletConnect({
       // TODO - replace with your own Infura ID
       infuraId: '8fcacee838e04f31b6ec145eb98879c8',
@@ -112,6 +135,7 @@ async function handleWalletSignIn(state: any, host, connector: Providers) {
   if (!address) {
     throw new Error('Address not found.');
   }
+  console.log(" - Wallet address: ", address);
 
   /**
    * Try to resolve address ENS and updates the title accordingly.
@@ -119,59 +143,63 @@ async function handleWalletSignIn(state: any, host, connector: Providers) {
   let ens: string;
   try {
     ens = await provider.lookupAddress(address);
+    console.log(' - ENS:', ens);
   } catch (error) {
     console.error(error);
   }
 
   /**
-   * TODO: Implement Passing back a nonce
-   * Gets a nonce from our backend, this will add this nonce to the session so
-   * we can check it on sign in.
-   */
-  const nonce = await fetch(`${host}/nonce`, { credentials: 'include' }).then((res) => res.text());
-  // Log the received Nonce from the session
-  console.log(nonce);
-
-  /**
    * Creates the message object
    */
+
+  // note (al) - the domain should not include protocol or port, this won't parse correctly if it does
+  const domain = host.split('//')[1].split(':')[0];
+
   const message = new SiweMessage({
-    domain: document.location.host,
+    domain,
     address,
     chainId: await provider.getNetwork().then(({ chainId }) => chainId),
     uri: document.location.origin,
     version: '1',
     statement: 'Banyan Estuary Login',
-    nonce,
-  });
+    nonce
+  }).prepareMessage();
+
+  // Log the message
+  console.log(' - Message:', message);
+
 
   /**
    * Generates the message to be signed and uses the provider to ask for a signature
    */
-  const signature = await provider.getSigner().signMessage(message.prepareMessage());
+  const signature = await provider.getSigner().signMessage(message);
 
   /**
    * Calls our login endpoint to validate the message, if successful it will
-   * save the message in the session and allow the user to store his text
+   * provide the user with an API token they can use to authenticate themselves
    */
   fetch(`${host}/login`, {
     method: 'POST',
     body: JSON.stringify({ message, ens, signature }),
+    mode: 'cors',
     headers: {
-      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': `http://${host}`,
+      'Access-Control-Allow-Credentials': 'true'
     },
-    credentials: 'include'
+    credentials: 'include',
+    // credentials: 'include'
   }).then((res) => {
     if (res.status === 200) {
       res.json().then((data) => {
-        console.log(data);
-        console.log('Authenticated SIWE scheme.');
+        console.log('Authenticated with SIWE scheme.');
+
         Cookies.set(C.auth, data.token);
-        window.location.href = '/home';
+        // window.location.href = '/home';
         return;
       }
     )} else {
       res.json().then((err) => {
+        /* TODO - handle errors on the frontend */
         console.error(err);
       });
   }});
@@ -318,11 +346,15 @@ function SignInPage(props: any) {
                 // If we metamask is available, we can use it to sign in.
                 if (window.ethereum) {
                   setState({...state, loading: true});
-                  const response = await handleSignIn(state, props.api, Providers.METAMASK);
+                  // You need to pass `window.ethereum` to the sign in function,
+                  // If the provider is MetaMask
+                  const response = await handleSiweLogin(
+                      state, props.api, Providers.METAMASK, window.ethereum
+                  );
                   if (response && response.error) {
                     alert(response.error);
-                    setState({...state, loading: false});
                   }
+                  setState({...state, loading: false});
                 } else {
                   alert('Please install MetaMask to sign in.');
                 }
