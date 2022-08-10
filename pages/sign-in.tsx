@@ -194,7 +194,7 @@ async function handleSiweLogin(state: any, host, connector: Providers, _metamask
         console.log('Authenticated with SIWE scheme.');
 
         Cookies.set(C.auth, data.token);
-        // window.location.href = '/home';
+        window.location.href = '/home';
         return;
       }
     )} else {
