@@ -152,8 +152,8 @@ async function handleSiweLogin(state: any, host, connector: Providers, _metamask
    * Creates the message object
    */
 
-  // note (al) - the domain should not include protocol or port, this won't parse correctly if it does
-  const domain = host.split('//')[1].split(':')[0];
+  // note (al) - the domain should not include protocol, this won't parse correctly if it does
+  const domain = host.split('//')[1] //.split(':')[0];
 
   const message = new SiweMessage({
     domain,
