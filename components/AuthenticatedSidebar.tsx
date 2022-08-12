@@ -49,6 +49,7 @@ function AuthenticatedLayout(props: any) {
       <a className={styles.item} href="/settings">
         Account
       </a>
+      {/* TODO: note (al) This should point to our own landing page that we'll deploy under the same domain */}
       <a className={styles.item} href="https://docs.estuary.tech/feedback" target="_blank">
         Feedback
       </a>
@@ -56,7 +57,10 @@ function AuthenticatedLayout(props: any) {
         className={styles.item}
         onClick={async () => {
           const token = Cookies.get(C.auth);
-          const response = await R.del(`/user/api-keys/${token}`, props.api);
+          let err = await R.del(`/user/api-keys/${token}`, props.api);
+          if (err) {
+            console.log("Could not delete Resource: ", err);
+          }
           Cookies.remove(C.auth);
           window.location.href = '/';
         }}

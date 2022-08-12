@@ -24,7 +24,6 @@ const enum Providers {
   WALLET_CONNECT = 'walletconnect',
 }
 
-let metamask = undefined;
 let walletconnect: WalletConnect;
 
 import Cookies from 'js-cookie';
@@ -35,8 +34,6 @@ import Input from '@components/Input';
 import Button from '@components/Button';
 
 import { H1, H2, H3, H4, P } from '@components/Typography';
-
-const ENABLE_SIGN_IN_WITH_FISSION = false;
 
 export async function getServerSideProps(context) {
 
@@ -84,7 +81,16 @@ async function handleTokenAuthenticate(state: any, host) {
   This should support logic for all login Providers.
   References to MetaMask extensions must be passed in as a prop.
  */
-async function handleSiweLogin(state: any, host, connector: Providers, _metamask: any = undefined) {
+
+/**
+ * Sign in with a crypto wallet
+ * @param state
+ * @param host
+ * @param connector
+ * @param _extension - A reference to a browser extension referencing a wallet address. In this case, MetaMask.
+ * @returns {Promise<err>} - Returns a promise that resolves to an error if there is one.
+ */
+async function handleSiweLogin(state: any, host, connector: Providers, _extension: any = undefined) {
   console.log("Handling Siwe Login");
 
   /*
@@ -100,14 +106,26 @@ async function handleSiweLogin(state: any, host, connector: Providers, _metamask
     },
     method: 'GET',
     credentials: 'include',
-  }).then((res) => res.text().then((text) => {
+  }).then((res) =>
+      res.text().then((text) => {
         // TODO: Figure out why Estuary handleNonce gives us this messed up format
         // Remove any non-aplha-numeric characters from the nonce
         return text.replace(/[^a-zA-Z0-9]/g, '');
-      }
-  ));
+      }).catch((err) => {
+        console.log(err);
+        return '';
+      })
+  ).catch((err) => {
+    console.log(err);
+    return '';
+  });
 
   console.log(" - Received nonce: ", nonce);
+  if (nonce === '') {
+      return {
+          error: 'Could not fetch nonce',
+      };
+  }
 
 
   /**
@@ -116,11 +134,11 @@ async function handleSiweLogin(state: any, host, connector: Providers, _metamask
   let provider: ethers.providers.Web3Provider;
 
   if (connector === 'metamask') {
-    await _metamask.request({
+    await _extension.request({
       method: 'eth_requestAccounts',
     });
     // Fun fact: MetaMask also uses infura for its RPC: we should maybe use the same Infura for all providers
-    provider = new ethers.providers.Web3Provider(_metamask);
+    provider = new ethers.providers.Web3Provider(_extension);
   } else {
     walletconnect = new WalletConnect({
       // TODO - replace with your own Infura ID
@@ -133,7 +151,7 @@ async function handleSiweLogin(state: any, host, connector: Providers, _metamask
   // Get the user's address
   const [address] = await provider.listAccounts();
   if (!address) {
-    throw new Error('Address not found.');
+    return { error: Error('Address not found.') };
   }
   console.log(" - Wallet address: ", address);
 
@@ -146,6 +164,7 @@ async function handleSiweLogin(state: any, host, connector: Providers, _metamask
     console.log(' - ENS:', ens);
   } catch (error) {
     console.error(error);
+    return { error: error };
   }
 
   /**
@@ -178,7 +197,7 @@ async function handleSiweLogin(state: any, host, connector: Providers, _metamask
    * Calls our login endpoint to validate the message, if successful it will
    * provide the user with an API token they can use to authenticate themselves
    */
-  fetch(`${host}/login`, {
+  let err = await fetch(`${host}/login`, {
     method: 'POST',
     body: JSON.stringify({ message, ens, signature }),
     mode: 'cors',
@@ -192,105 +211,117 @@ async function handleSiweLogin(state: any, host, connector: Providers, _metamask
     if (res.status === 200) {
       res.json().then((data) => {
         console.log('Authenticated with SIWE scheme.');
-
-        Cookies.set(C.auth, data.token);
+        // Set a cookie with the token, with SameSite=Lax to allow for cross-origin requests
+        Cookies.set(C.auth, data.token, {
+            expires: 1,
+            sameSite: 'lax',
+        });
+        // Delete the cookie for the nonce
+        Cookies.remove(C.siwe);
+        // Navigate to the home page
         window.location.href = '/home';
-        return;
+        return null;
       }
     )} else {
       res.json().then((err) => {
         /* TODO - handle errors on the frontend */
         console.error(err);
+        return { error: err };
       });
   }});
+
+  if (err !== null) {
+    console.error(err);
+    return { error: err };
+  }
 }
 
 /*
   Handles sign in with a username and password
   I don't think we plan on supporting that workflow, but I'll keep the definition around
  */
-async function handleSignIn(state: any, host, connector: Providers) {
-  let provider = ethers.providers.Web3Provider;
-
-  if (U.isEmpty(state.username)) {
-    return { error: 'Please provide a username.' };
-  }
-
-  if (U.isEmpty(state.password)) {
-    return { error: 'Please provide a password.' };
-  }
-
-  if (!U.isValidUsername(state.username)) {
-    return { error: 'Your username must be 1-48 characters or digits.' };
-  }
-
-  // NOTE(jim) We've added a new scheme to keep things safe for users.
-  state.passwordHash = await Crypto.attemptHashWithSalt(state.password);
-
-  let r = await fetch(`${host}/login`, {
-    method: 'POST',
-    body: JSON.stringify({ passwordHash: state.passwordHash, username: state.username }),
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
-
-  if (r.status !== 200) {
-    // NOTE(jim): We don't know the users password ever so we can't do anything on their
-    // behalf, but if they were authenticated using the old method, we can do one more retry.
-    const retryHash = await Crypto.attemptHash(state.password);
-
-    let retry = await fetch(`${host}/login`, {
-      method: 'POST',
-      body: JSON.stringify({ passwordHash: retryHash, username: state.username }),
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (retry.status !== 200) {
-      return { error: 'Failed to authenticate' };
-    }
-
-    const retryJSON = await retry.json();
-    if (retryJSON.error) {
-      return retryJSON;
-    }
-
-    if (!retryJSON.token) {
-      return { error: 'Failed to authenticate' };
-    }
-
-    console.log('Authenticated using legacy scheme.');
-
-    Cookies.set(C.auth, retryJSON.token);
-
-    console.log('Attempting legacy scheme revision on your behalf');
-
-    try {
-      const response = await R.put('/user/password', { newPasswordHash: state.passwordHash }, host);
-    } catch (e) {
-      console.log('Failure:', e);
-    }
-
-    window.location.href = '/home';
-    return;
-  }
-
-  const j = await r.json();
-  if (j.error) {
-    return j;
-  }
-
-  if (!j.token) {
-    return { error: 'Failed to authenticate' };
-  }
-
-  console.log('Authenticated using advanced scheme.');
-  Cookies.set(C.auth, j.token);
-  window.location.href = '/home';
-  return;
-}
+// async function handleSignIn(state: any, host, connector: Providers) {
+//   let provider = ethers.providers.Web3Provider;
+//
+//   if (U.isEmpty(state.username)) {
+//     return { error: 'Please provide a username.' };
+//   }
+//
+//   if (U.isEmpty(state.password)) {
+//     return { error: 'Please provide a password.' };
+//   }
+//
+//   if (!U.isValidUsername(state.username)) {
+//     return { error: 'Your username must be 1-48 characters or digits.' };
+//   }
+//
+//   // NOTE(jim) We've added a new scheme to keep things safe for users.
+//   state.passwordHash = await Crypto.attemptHashWithSalt(state.password);
+//
+//   let r = await fetch(`${host}/login`, {
+//     method: 'POST',
+//     body: JSON.stringify({ passwordHash: state.passwordHash, username: state.username }),
+//     headers: {
+//       'Content-Type': 'application/json',
+//     },
+//   });
+//
+//   if (r.status !== 200) {
+//     // NOTE(jim): We don't know the users password ever so we can't do anything on their
+//     // behalf, but if they were authenticated using the old method, we can do one more retry.
+//     const retryHash = await Crypto.attemptHash(state.password);
+//
+//     let retry = await fetch(`${host}/login`, {
+//       method: 'POST',
+//       body: JSON.stringify({ passwordHash: retryHash, username: state.username }),
+//       headers: {
+//         'Content-Type': 'application/json',
+//       },
+//     });
+//
+//     if (retry.status !== 200) {
+//       return { error: 'Failed to authenticate' };
+//     }
+//
+//     const retryJSON = await retry.json();
+//     if (retryJSON.error) {
+//       return retryJSON;
+//     }
+//
+//     if (!retryJSON.token) {
+//       return { error: 'Failed to authenticate' };
+//     }
+//
+//     console.log('Authenticated using legacy scheme.');
+//
+//     Cookies.set(C.auth, retryJSON.token);
+//
+//     console.log('Attempting legacy scheme revision on your behalf');
+//
+//     try {
+//       const response = await R.put('/user/password', { newPasswordHash: state.passwordHash }, host);
+//     } catch (e) {
+//       console.log('Failure:', e);
+//     }
+//
+//     window.location.href = '/home';
+//     return;
+//   }
+//
+//   const j = await r.json();
+//   if (j.error) {
+//     return j;
+//   }
+//
+//   if (!j.token) {
+//     return { error: 'Failed to authenticate' };
+//   }
+//
+//   console.log('Authenticated using advanced scheme.');
+//   Cookies.set(C.auth, j.token);
+//   window.location.href = '/home';
+//   return;
+// }
 
 function SignInPage(props: any) {
 
@@ -348,11 +379,11 @@ function SignInPage(props: any) {
                   setState({...state, loading: true});
                   // You need to pass `window.ethereum` to the sign in function,
                   // If the provider is MetaMask
-                  const response = await handleSiweLogin(
+                  let err = await handleSiweLogin(
                       state, props.api, Providers.METAMASK, window.ethereum
                   );
-                  if (response && response.error) {
-                    alert(response.error);
+                  if (err && err.error) {
+                    alert(err.error);
                   }
                   setState({...state, loading: false});
                 } else {
@@ -367,9 +398,9 @@ function SignInPage(props: any) {
               style={{ width: '100%', marginTop: 8 }}
               onClick={async () => {
                 setState({ ...state, loading: true });
-                const response = await handleSignIn(state, props.api, Providers.WALLET_CONNECT);
-                if (response && response.error) {
-                  alert(response.error);
+                let err = await handleSiweLogin(state, props.api, Providers.WALLET_CONNECT);
+                if (err) {
+                  alert(err.error);
                   setState({ ...state, loading: false });
                 }
               }}

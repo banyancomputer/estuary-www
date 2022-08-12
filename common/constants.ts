@@ -28,8 +28,10 @@ export const statusColors = {
 export const salt = '$2a$08$r31MZDLMLVcHAUfrePT2H.';
 
 // NOTE(jim)
-// Cookie key
+// Auth Cookie key
 export const auth = 'ESTUARY_TOKEN';
+// SIWE Session Cookie key
+export const siwe = 'SIWE_SESSION';
 
 // NOTE(jim)
 // Valid username regex

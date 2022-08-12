@@ -2,7 +2,7 @@ import Cookies from 'js-cookie';
 
 import * as C from '@common/constants';
 
-export const get = async (route, host = 'https://api.estuary.tech'): Promise<any> => {
+export const get = async (route, host = C.api.host): Promise<any> => {
   try {
     const token = Cookies.get(C.auth);
 
@@ -36,7 +36,7 @@ export const get = async (route, host = 'https://api.estuary.tech'): Promise<any
   }
 };
 
-export const post = async (route, payload, host = 'https://api.estuary.tech'): Promise<any> => {
+export const post = async (route, payload, host = C.api.host): Promise<any> => {
   try {
     const token = Cookies.get(C.auth);
 
@@ -71,7 +71,7 @@ export const post = async (route, payload, host = 'https://api.estuary.tech'): P
   }
 };
 
-export const put = async (route, payload, host = 'https://api.estuary.tech'): Promise<any> => {
+export const put = async (route, payload, host = C.api.host): Promise<any> => {
   try {
     const token = Cookies.get(C.auth);
 
@@ -106,7 +106,15 @@ export const put = async (route, payload, host = 'https://api.estuary.tech'): Pr
   }
 };
 
-export const del = async (route: string, payload?: object, host = 'https://api.estuary.tech'): Promise<any> => {
+
+/**
+ * Delete a resource
+ * @param route The route to the resource
+ * @param payload The payload (if any) to send to the server
+ * @param host The host to send the request to
+ * @returns An error if there was one, otherwise Null
+ */
+export const del = async (route: string, payload?: object, host = C.api.host ): Promise<any> => {
   try {
     const token = Cookies.get(C.auth);
 
@@ -124,17 +132,7 @@ export const del = async (route: string, payload?: object, host = 'https://api.e
       return { error: 'You are not authorized.' };
     }
 
-    const j = await r.json();
-    if (!j) {
-      return { error: 'No response from the server.' };
-    }
-
-    if (j.error) {
-      return { error: j.error };
-    }
-
-    console.log(route, j);
-    return j;
+    return null;
   } catch (e) {
     console.log(route, e);
     return { error: 'Something went wrong on our end' };

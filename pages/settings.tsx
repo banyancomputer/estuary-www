@@ -115,36 +115,37 @@ function SettingsPage(props: any) {
         </SingleColumnLayout>
 
         <SingleColumnLayout>
-          <H3>Change password</H3>
-          <P style={{ marginTop: 16 }}>Please enter your new password to change your password.</P>
+          {/*note (al) We're moving away from password authentication, so this is now longer needed*/}
+          {/*<H3>Change password</H3>*/}
+          {/*<P style={{ marginTop: 16 }}>Please enter your new password to change your password.</P>*/}
 
-          <H4 style={{ marginTop: 32 }}>New password</H4>
-          <Input
-            style={{ marginTop: 8 }}
-            placeholder="Pick something memorable"
-            name="new"
-            value={state.new}
-            type="password"
-            onChange={(e) => setState({ ...state, [e.target.name]: e.target.value })}
-          />
-          <aside className={styles.formAside}>Requirements: at least 8 characers, must use at least one letter and number.</aside>
+          {/*<H4 style={{ marginTop: 32 }}>New password</H4>*/}
+          {/*<Input*/}
+          {/*  style={{ marginTop: 8 }}*/}
+          {/*  placeholder="Pick something memorable"*/}
+          {/*  name="new"*/}
+          {/*  value={state.new}*/}
+          {/*  type="password"*/}
+          {/*  onChange={(e) => setState({ ...state, [e.target.name]: e.target.value })}*/}
+          {/*/>*/}
+          {/*<aside className={styles.formAside}>Requirements: at least 8 characers, must use at least one letter and number.</aside>*/}
 
-          <H4 style={{ marginTop: 24 }}>Confirm new password</H4>
-          <Input
-            style={{ marginTop: 8 }}
-            placeholder="Pick something memorable"
-            name="confirm"
-            value={state.confirm}
-            type="password"
-            onChange={(e) => setState({ ...state, [e.target.name]: e.target.value })}
-            onSubmit={(e) => onSubmit(e, { ...state }, setState, props.api)}
-          />
+          {/*<H4 style={{ marginTop: 24 }}>Confirm new password</H4>*/}
+          {/*<Input*/}
+          {/*  style={{ marginTop: 8 }}*/}
+          {/*  placeholder="Pick something memorable"*/}
+          {/*  name="confirm"*/}
+          {/*  value={state.confirm}*/}
+          {/*  type="password"*/}
+          {/*  onChange={(e) => setState({ ...state, [e.target.name]: e.target.value })}*/}
+          {/*  onSubmit={(e) => onSubmit(e, { ...state }, setState, props.api)}*/}
+          {/*/>*/}
 
-          <div className={styles.actions}>
-            <Button loading={state.loading} onClick={(e) => onSubmit(e, { ...state }, setState, props.api)}>
-              Change
-            </Button>
-          </div>
+          {/*<div className={styles.actions}>*/}
+          {/*  <Button loading={state.loading} onClick={(e) => onSubmit(e, { ...state }, setState, props.api)}>*/}
+          {/*    Change*/}
+          {/*  </Button>*/}
+          {/*</div>*/}
 
           <H3 style={{ marginTop: 64 }}>Default settings (read only)</H3>
           <P style={{ marginTop: 16 }}>Estuary is configured to default settings for deals. You can not change these values, yet.</P>
