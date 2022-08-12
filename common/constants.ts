@@ -28,8 +28,10 @@ export const statusColors = {
 export const salt = '$2a$08$r31MZDLMLVcHAUfrePT2H.';
 
 // NOTE(jim)
-// Cookie key
+// Auth Cookie key
 export const auth = 'ESTUARY_TOKEN';
+// SIWE Session Cookie key
+export const siwe = 'SIWE_SESSION';
 
 // NOTE(jim)
 // Valid username regex
@@ -47,6 +49,7 @@ function getAPIHost(): string {
 
   switch (process.env.NODE_ENV) {
     case 'production':
+      // TODO: Configure to point to our acutal production API
       return 'https://api.estuary.tech';
     default:
       return 'http://localhost:3004';
