@@ -19,11 +19,6 @@ declare global {
   }
 }
 
-const enum Providers {
-  METAMASK = 'metamask',
-  WALLET_CONNECT = 'walletconnect',
-}
-
 let walletconnect: WalletConnect;
 
 import Cookies from 'js-cookie';
@@ -34,6 +29,7 @@ import Input from '@components/Input';
 import Button from '@components/Button';
 
 import { H1, H2, H3, H4, P } from '@components/Typography';
+import {ProviderData} from "@common/crypto";
 
 export async function getServerSideProps(context) {
 
@@ -90,7 +86,7 @@ async function handleTokenAuthenticate(state: any, host) {
  * @param _extension - A reference to a browser extension referencing a wallet address. In this case, MetaMask.
  * @returns {Promise<err>} - Returns a promise that resolves to an error if there is one.
  */
-async function handleSiweLogin(state: any, host, connector: Providers, _extension: any = undefined) {
+async function handleSiweLogin(state: any, host, connector: C.EthProviders, _extension: any = undefined) {
   console.log("Handling Siwe Login");
 
   /*
@@ -127,45 +123,18 @@ async function handleSiweLogin(state: any, host, connector: Providers, _extensio
       };
   }
 
+  /* Get provider Data from the client */
+  let providerData: ProviderData | { error: any } = await Crypto.getProviderData(connector, _extension);
 
-  /**
-   * Connect to a user's wallet and start an etherjs provider.
-   */
-  let provider: ethers.providers.Web3Provider;
-
-  if (connector === 'metamask') {
-    await _extension.request({
-      method: 'eth_requestAccounts',
-    });
-    // Fun fact: MetaMask also uses infura for its RPC: we should maybe use the same Infura for all providers
-    provider = new ethers.providers.Web3Provider(_extension);
-  } else {
-    walletconnect = new WalletConnect({
-      // TODO - replace with your own Infura ID
-      infuraId: '8fcacee838e04f31b6ec145eb98879c8',
-    });
-    walletconnect.enable();
-    provider = new ethers.providers.Web3Provider(walletconnect);
+  if (providerData.error) {
+    return {
+      error: providerData.error,
+    };
   }
 
-  // Get the user's address
-  const [address] = await provider.listAccounts();
-  if (!address) {
-    return { error: Error('Address not found.') };
-  }
-  console.log(" - Wallet address: ", address);
-
-  /**
-   * Try to resolve address ENS and updates the title accordingly.
-   */
-  let ens: string;
-  try {
-    ens = await provider.lookupAddress(address);
-    console.log(' - ENS:', ens);
-  } catch (error) {
-    console.error(error);
-    return { error: error };
-  }
+  let provider = providerData.provider;
+  let address = providerData.address;
+  let ens = providerData.ens;
 
   /**
    * Creates the message object
@@ -186,7 +155,6 @@ async function handleSiweLogin(state: any, host, connector: Providers, _extensio
 
   // Log the message
   console.log(' - Message:', message);
-
 
   /**
    * Generates the message to be signed and uses the provider to ask for a signature
@@ -211,13 +179,17 @@ async function handleSiweLogin(state: any, host, connector: Providers, _extensio
     if (res.status === 200) {
       res.json().then((data) => {
         console.log('Authenticated with SIWE scheme.');
-        // Set a cookie with the token, with SameSite=Lax to allow for cross-origin requests
+        // Set a cookie with the Auth token, with SameSite=Lax to allow for cross-origin requests
         Cookies.set(C.auth, data.token, {
             expires: 1,
             sameSite: 'lax',
         });
+        // Set a cookie with the provider
+        Cookies.set(C.providerData, providerData, {
+            expires: 1,
+        });
         // Delete the cookie for the nonce
-        Cookies.remove(C.siwe);
+        Cookies.remove(C.siweNonce);
         // Navigate to the home page
         window.location.href = '/home';
         return null;
@@ -380,7 +352,7 @@ function SignInPage(props: any) {
                   // You need to pass `window.ethereum` to the sign in function,
                   // If the provider is MetaMask
                   let err = await handleSiweLogin(
-                      state, props.api, Providers.METAMASK, window.ethereum
+                      state, props.api, Crypto.EthProviders.METAMASK, window.ethereum
                   );
                   if (err && err.error) {
                     alert(err.error);
@@ -398,7 +370,7 @@ function SignInPage(props: any) {
               style={{ width: '100%', marginTop: 8 }}
               onClick={async () => {
                 setState({ ...state, loading: true });
-                let err = await handleSiweLogin(state, props.api, Providers.WALLET_CONNECT);
+                let err = await handleSiweLogin(state, props.api, Crypto.EthProviders.WALLET_CONNECT);
                 if (err) {
                   alert(err.error);
                   setState({ ...state, loading: false });

@@ -16,8 +16,10 @@ import AuthenticatedSidebar from '@components/AuthenticatedSidebar';
 import Button from '@components/Button';
 import ActionRow from '@components/ActionRow';
 import AlertPanel from '@components/AlertPanel';
+import { ethers} from "ethers";
 
 import { H1, H2, H3, H4, P } from '@components/Typography';
+import {useRouter} from "next/router";
 
 const INCREMENT = 100;
 
@@ -39,6 +41,7 @@ export async function getServerSideProps(context) {
 
 export const ContentCard = ({ content, deals, id, root, failuresCount, viewer }): any => {
   const [state, setState] = React.useState({ showFiles: false, showFailures: false });
+  const { query } = useRouter();
 
   let failureCount = 0;
   let successCount = 0;
@@ -212,21 +215,25 @@ export default class Dashboard extends React.Component<any, any> {
           <PageHeader>
             <H2>Deals</H2>
             <P style={{ marginTop: 16 }}>
-              All of your storage deals and logs will appear here.
-              You can configure a deal here specifying $/GiB and duration.
-              Your deal will be signed and managed by this Estuary node.
-              Deals are only immeditaly initiated when they meet the staging threshold.
-              Otherwise, the node will package multupiple files into a single deal.
-              When that minimum size is reached, the deal is counter-signed by this Estuary node and submitted to-chain.
-              Meanwhile your files will be stored on this node free of charge!
+              {/*TODO: Actually list active deals here*/}
+              {/*All of your storage deals and logs will appear here.*/}
+              You can configure a new deal here specifying $/GiB and duration.
+              {/*Your deal will be signed and managed by this Estuary node.*/}
+              {/*Deals are only immeditaly initiated when they meet the staging threshold.*/}
+              {/*Otherwise, the node will package multupiple files into a single deal.*/}
+              {/*When that minimum size is reached, the deal is counter-signed by this Estuary node and submitted to-chain.*/}
+              {/*Meanwhile your files will be stored on this node free of charge!*/}
             </P>
 
             <P style={{ marginTop: 16 }}>Price per GiB: {this.props.viewer.settings.dealPricePerGiB}</P>
             <P style={{ marginTop: 16 }}>Token Denomination: {this.props.viewer.settings.dealTokenDenomination}</P>
             <P style={{ marginTop: 16 }}>Duration: {this.props.viewer.settings.dealDuration}</P>
             <P style={{ marginTop: 16 }}>Staging Threshold: {this.props.viewer.settings.fileStagingThreshold}</P>
+            // Get the CID from the URI
+            <P style={{ marginTop: 16 }}>CID: {query.cid} </P>
 
             <div className={styles.actions}>
+              {/*TODO: You would */}
               <Button href="/upload">Upload data</Button>
             </div>
           </PageHeader>

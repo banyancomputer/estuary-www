@@ -18,6 +18,7 @@ import ActionRow from '@components/ActionRow';
 import AlertPanel from '@components/AlertPanel';
 
 import { H1, H2, H3, H4, P } from '@components/Typography';
+import * as Crypto from "@common/crypto";
 
 const INCREMENT = 1000;
 
@@ -105,6 +106,10 @@ function HomePage(props: any) {
         ) : (
           <PageHeader>
             <H2>Files</H2>
+            <P style={{ marginTop: 16 }}>
+              Files that you upload to Banyan are listed here. <br />
+              You can configure deals for files on an individual basis, and they will eventually be pinned by an IPFS node.
+            </P>
           </PageHeader>
         )}
 
@@ -141,6 +146,9 @@ function HomePage(props: any) {
                 <th className={tstyles.th} style={{ width: '120px' }}>
                   Files
                 </th>
+                <th className={tstyles.th} style={{ width: '120px' }}>
+                  Deal Status
+                </th>
               </tr>
               {state.files && state.files.length
                 ? state.files.map((data, index) => {
@@ -166,6 +174,7 @@ function HomePage(props: any) {
                           </a>
                         </td>
                         <td className={tstyles.td}>{data.aggregatedFiles + 1}</td>
+                        <td className={tstyles.td}>{data.dealStatus}</td>
                       </tr>
                     );
                   })
