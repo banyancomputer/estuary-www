@@ -41,45 +41,46 @@ export async function getServerSideProps(context) {
 const onSubmit = async (event, state, setState, host) => {
   setState({ ...state, loading: true });
 
-  if (U.isEmpty(state.new)) {
-    alert('Please provide a new password');
-    return setState({ ...state, loading: false });
-  }
-
-  if (!U.isValidPassword(state.new)) {
-    return {
-      error: 'Please provide a password thats at least 8 characters with at least one letter and one number',
-    };
-  }
-
-  if (U.isEmpty(state.confirm)) {
-    alert('Please confirm your new password');
-    return setState({ ...state, loading: false });
-  }
-
-  if (state.new !== state.confirm) {
-    alert('Please make sure you confirmed your new password correctly');
-    return setState({ ...state, loading: false });
-  }
-
-  let newPasswordHash = await Crypto.attemptHashWithSalt(state.new);
-
-  let response;
-  try {
-    response = await R.put('/user/password', { newPasswordHash: newPasswordHash }, host);
-    await U.delay(1000);
-
-    if (response.error) {
-      alert(response.error);
-      return setState({ ...state, new: '', confirm: '', loading: false });
-    }
-  } catch (e) {
-    console.log(e);
-    alert('Something went wrong');
-    return setState({ ...state, new: '', confirm: '', loading: false });
-  }
-
-  alert('Your password has been changed.');
+  // note (al): this is all deprecated and should be removed
+  // if (U.isEmpty(state.new)) {
+  //   alert('Please provide a new password');
+  //   return setState({ ...state, loading: false });
+  // }
+  //
+  // if (!U.isValidPassword(state.new)) {
+  //   return {
+  //     error: 'Please provide a password thats at least 8 characters with at least one letter and one number',
+  //   };
+  // }
+  //
+  // if (U.isEmpty(state.confirm)) {
+  //   alert('Please confirm your new password');
+  //   return setState({ ...state, loading: false });
+  // }
+  //
+  // if (state.new !== state.confirm) {
+  //   alert('Please make sure you confirmed your new password correctly');
+  //   return setState({ ...state, loading: false });
+  // }
+  //
+  // let newPasswordHash = await Crypto.attemptHashWithSalt(state.new);
+  //
+  // let response;
+  // try {
+  //   response = await R.put('/user/password', { newPasswordHash: newPasswordHash }, host);
+  //   await U.delay(1000);
+  //
+  //   if (response.error) {
+  //     alert(response.error);
+  //     return setState({ ...state, new: '', confirm: '', loading: false });
+  //   }
+  // } catch (e) {
+  //   console.log(e);
+  //   alert('Something went wrong');
+  //   return setState({ ...state, new: '', confirm: '', loading: false });
+  // }
+  //
+  // alert('Your password has been changed.');
   return setState({ ...state, new: '', confirm: '', loading: false });
 };
 
