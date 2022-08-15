@@ -32,7 +32,6 @@ export async function getServerSideProps(context) {
       },
     };
   }
-
   return {
     props: { viewer, api: process.env.ESTUARY_API, hostname: `https://${context.req.headers.host}` },
   };
@@ -222,7 +221,10 @@ export default class Dashboard extends React.Component<any, any> {
               Meanwhile your files will be stored on this node free of charge!
             </P>
 
-            <P style={{ marginTop: 16 }}>Price per GiB: {this.props.viewer.pricePerGiB} USDC</P>
+            <P style={{ marginTop: 16 }}>Price per GiB: {this.props.viewer.settings.dealPricePerGiB}</P>
+            <P style={{ marginTop: 16 }}>Token Denomination: {this.props.viewer.settings.dealTokenDenomination}</P>
+            <P style={{ marginTop: 16 }}>Duration: {this.props.viewer.settings.dealDuration}</P>
+            <P style={{ marginTop: 16 }}>Staging Threshold: {this.props.viewer.settings.fileStagingThreshold}</P>
 
             <div className={styles.actions}>
               <Button href="/upload">Upload data</Button>
