@@ -212,7 +212,17 @@ export default class Dashboard extends React.Component<any, any> {
         <AuthenticatedLayout navigation={navigationElement} sidebar={sidebarElement}>
           <PageHeader>
             <H2>Deals</H2>
-            <P style={{ marginTop: 16 }}>All of your Filecoin deals and logs will appear here. Deals are automated and made on your behalf.</P>
+            <P style={{ marginTop: 16 }}>
+              All of your storage deals and logs will appear here.
+              You can configure a deal here specifying $/GiB and duration.
+              Your deal will be signed and managed by this Estuary node.
+              Deals are only immeditaly initiated when they meet the staging threshold.
+              Otherwise, the node will package multupiple files into a single deal.
+              When that minimum size is reached, the deal is counter-signed by this Estuary node and submitted to-chain.
+              Meanwhile your files will be stored on this node free of charge!
+            </P>
+
+            <P style={{ marginTop: 16 }}>Price per GiB: {this.props.viewer.pricePerGiB} USDC</P>
 
             <div className={styles.actions}>
               <Button href="/upload">Upload data</Button>
