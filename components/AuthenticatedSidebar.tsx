@@ -47,13 +47,17 @@ function AuthenticatedLayout(props: any) {
       </a>
 
       <div className={styles.title}>Settings</div>
-      <a className={styles.item} href="/your-miners">
-        Your miners
-      </a>
 
-      <a className={styles.item} href="/settings">
-        Account
-      </a>
+      {/*  note (al): We don't support miners configuring accounts */}
+      {/*<a className={styles.item} href="/your-miners">*/}
+      {/*  Your miners*/}
+      {/*</a>*/}
+
+      {/*  note (al) Users can't actually change any settings as of yet */}
+      {/*<a className={styles.item} href="/settings">*/}
+      {/*  Account*/}
+      {/*</a>*/}
+
       {/* TODO: note (al) This should point to our own landing page that we'll deploy under the same domain */}
       <a className={styles.item} href="https://docs.estuary.tech/feedback" target="_blank">
         Feedback

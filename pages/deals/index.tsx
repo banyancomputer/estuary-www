@@ -40,12 +40,13 @@ export async function getServerSideProps(context) {
 }
 
 export const ContentCard = ({ content, deals, id, root, failuresCount, viewer }): any => {
-  const [state, setState] = React.useState({ showFiles: false, showFailures: false });
   const { query } = useRouter();
+  const [state, setState] = React.useState({ showFiles: false, showFailures: false, cid: query.cid });
 
   let failureCount = 0;
   let successCount = 0;
 
+  /* This page doesn't actually get any deal statistics right now */
   let dealElements =
     deals && deals.length ? (
       deals.map((d, index) => {
@@ -229,8 +230,6 @@ export default class Dashboard extends React.Component<any, any> {
             <P style={{ marginTop: 16 }}>Token Denomination: {this.props.viewer.settings.dealTokenDenomination}</P>
             <P style={{ marginTop: 16 }}>Duration: {this.props.viewer.settings.dealDuration}</P>
             <P style={{ marginTop: 16 }}>Staging Threshold: {this.props.viewer.settings.fileStagingThreshold}</P>
-            // Get the CID from the URI
-            <P style={{ marginTop: 16 }}>CID: {query.cid} </P>
 
             <div className={styles.actions}>
               {/*TODO: You would */}

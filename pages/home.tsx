@@ -4,6 +4,8 @@ import tstyles from '@pages/table.module.scss';
 import * as React from 'react';
 import * as U from '@common/utilities';
 import * as R from '@common/requests';
+import * as O from '@common/offers';
+import * as C from '@common/constants';
 
 import ProgressCard from '@components/ProgressCard';
 import Navigation from '@components/Navigation';
@@ -18,7 +20,7 @@ import ActionRow from '@components/ActionRow';
 import AlertPanel from '@components/AlertPanel';
 
 import { H1, H2, H3, H4, P } from '@components/Typography';
-import * as Crypto from "@common/crypto";
+import Cookies from 'js-cookie';
 
 const INCREMENT = 1000;
 
@@ -39,6 +41,7 @@ export async function getServerSideProps(context) {
   };
 }
 
+// Get the next set of files from Estuary
 const getNext = async (state, setState, host) => {
   const offset = state.offset + INCREMENT;
   const limit = state.limit;
@@ -62,15 +65,22 @@ function HomePage(props: any) {
     stats: null,
     offset: 0,
     limit: INCREMENT,
+
+    // All offers the User has submitted to chain
+    offers: []
   });
 
   React.useEffect(() => {
     const run = async () => {
+      // Get the users Ethereum address
+      const userAddress = Cookies.get(C.providerData).address;
+
       const files = await R.get(`/content/stats?offset=${state.offset}&limit=${state.limit}`, props.api);
       const stats = await R.get('/user/stats', props.api);
+      const offers = await O.getOffers(userAddress);
 
       if (files && !files.error) {
-        setState({ ...state, files, stats });
+        setState({ ...state, files, stats, offers });
       }
     };
 
@@ -108,7 +118,8 @@ function HomePage(props: any) {
             <H2>Files</H2>
             <P style={{ marginTop: 16 }}>
               Files that you upload to Banyan are listed here. <br />
-              You can configure deals for files on an individual basis, and they will eventually be pinned by an IPFS node.
+              You can configure deals for files on an individual basis, and they will eventually be pinned by an IPFS node. <br />
+              Deals you configure will show up here once they are confirmed.
             </P>
           </PageHeader>
         )}
@@ -153,6 +164,7 @@ function HomePage(props: any) {
               {state.files && state.files.length
                 ? state.files.map((data, index) => {
                     const fileURL = `https://dweb.link/ipfs/${data.cid['/']}`;
+                    console.log(fileURL);
 
                     let name = '...';
                     if (data && data.filename) {
@@ -161,6 +173,9 @@ function HomePage(props: any) {
                     if (name === 'aggregate') {
                       name = '/';
                     }
+
+                    let offerStatus = O.getOfferStatus(data.cid['/'], state.offers);
+                    let offerDescription = O.offerDescription(offerStatus);
 
                     return (
                       <tr key={`${data.cid['/']}-${index}`} className={tstyles.tr}>
@@ -174,7 +189,7 @@ function HomePage(props: any) {
                           </a>
                         </td>
                         <td className={tstyles.td}>{data.aggregatedFiles + 1}</td>
-                        <td className={tstyles.td}>{data.dealStatus}</td>
+                        <td className={tstyles.td}>{<a href={`/deals/${data.cid['/']}`}>{offerDescription}</a>}</td>
                       </tr>
                     );
                   })
