@@ -46,6 +46,8 @@ export async function getServerSideProps(context) {
   };
 }
 
+import { Up}
+
 /**
  * Note (al): For my own sanity, I'm going to reduce what this page does to handling single-file uploads.
  * TODO: Re-implement multi-file uploads.
@@ -54,7 +56,7 @@ export default class UploadPage extends React.Component<any> {
   list = React.createRef<any>();
 
   state = {
-    files: [],
+    uploads: [],
   };
 
   // Upload any files in the queue
@@ -64,7 +66,7 @@ export default class UploadPage extends React.Component<any> {
 
   // Remove a single file from the list.
   _handleRemove = (id) => {
-    this.setState({ files: this.state.files.filter((each) => each.id !== id) });
+    this.setState({ files: this.state.uploads.filter((each) => each.id !== id) });
   };
 
   // Remove all files from the list.
@@ -72,6 +74,7 @@ export default class UploadPage extends React.Component<any> {
     this.setState({ files: [] });
   };
 
+  // Process a file into a DealProposal, CID, and Blake3 Hash.
   _handleFile = async (file) => {
     if (!file) {
       console.log('MISSING DATA');
@@ -92,19 +95,19 @@ export default class UploadPage extends React.Component<any> {
     // In order to submit a deal to-chain: We need to know:
     // 1. Who's making the deal
     const creatorAddress = Cookies.get(C.providerData).address;
-
     // 2. Who to make a deal with
     const executorAddress = O.defaultExecutorAddress
-
     // 3. What sort of deal the creator wants to make. For now we'll just use the default deal configuration.
     const dealConfig = O.DefaultDealConfiguration;
+    // Then you generate a proposal for the deal.
+    const upload = {
+        dealProposal: O.generateDealProposal(executorAddress, dealConfig, file),
+        file,
+    }
 
-    // Then you generate a proposal for the deal and submit it to the chain.
-    const dealProposal = O.generateDealProposal(executorAddress, dealConfig, file);
-    const dealId = await O.proposeDeal(dealProposal);
-
+    // Record the new Upload in our state.
     return this.setState({
-      files: [{ id: `file-${new Date().getTime()}`, data: file, dealId }, ...this.state.files],
+      files: [{ id: `file-${new Date().getTime()}`, upload }, ...this.state.uploads],
     });
 
 
@@ -131,7 +134,6 @@ export default class UploadPage extends React.Component<any> {
   };
 
   render() {
-    console.log(this.state.files);
     const sidebarElement = <AuthenticatedSidebar active="UPLOAD" viewer={this.props.viewer} />;
 
     return (
@@ -142,10 +144,10 @@ export default class UploadPage extends React.Component<any> {
             <P style={{ marginTop: 16 }}>Add your public data to Estuary so anyone can retrieve it anytime.</P>
             <UploadZone onFile={this._handleFile} onFlush={this._handleFlush} host={this.props.api} />
 
-            {this.state.files.length ? (
+            {this.state.uploads.length ? (
               <React.Fragment>
                 <H3 style={{ marginTop: 64 }}>
-                  Queued {U.pluralize('file', this.state.files.length)} {`(${this.state.files.length})`}
+                  Queued {U.pluralize('file', this.state.uploads.length)} {`(${this.state.uploads.length})`}
                 </H3>
                 <P style={{ marginTop: 16 }}>Our Estuary node is ready to accept your data, click upload all to upload everything or click upload to upload individual files.</P>
 
@@ -166,7 +168,7 @@ export default class UploadPage extends React.Component<any> {
                   </Button>
                 </div>
 
-                <UploadList ref={this.list} files={this.state.files} viewer={this.props.viewer} onRemove={this._handleRemove} host={this.props.api} />
+                <UploadList ref={this.list} files={this.state.uploads} viewer={this.props.viewer} onRemove={this._handleRemove} host={this.props.api} />
               </React.Fragment>
             ) : null}
           </SingleColumnLayout>

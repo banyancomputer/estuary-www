@@ -1,7 +1,6 @@
 // NOTE(jim): https://github.com/filecoin-project/go-data-transfer/blob/master/statuses.go
 // Definitions
-
-import {ethers} from "ethers";
+import * as O from "@common/ethDeal";
 
 export const statusColors = {
   0: `var(--status-0)`,
@@ -23,13 +22,6 @@ export const statusColors = {
   16: `var(--status-16)`,
 };
 
-// NOTE(jim)
-// As discussed with Why, this salt is okay to expose to the client
-// Normally we would never do this but we want the password to be hashed from the wire.
-// And not server to server
-export const salt = '$2a$08$r31MZDLMLVcHAUfrePT2H.';
-
-// NOTE(jim)
 // Auth Cookie key
 export const auth = 'ESTUARY_TOKEN';
 // SIWE Session Cookie key

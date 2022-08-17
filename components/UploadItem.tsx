@@ -9,6 +9,7 @@ import Cookies from 'js-cookie';
 import ProgressBlock from '@components/ProgressBlock';
 import ActionRow from '@components/ActionRow';
 import LoaderSpinner from '@components/LoaderSpinner';
+import * as O from "@common/ethDeal";
 
 export class PinStatusElement extends React.Component<any> {
   state = { pinned: false, delegates: ['none'] };
@@ -52,6 +53,12 @@ export class PinStatusElement extends React.Component<any> {
     );
   }
 }
+
+// We're uploading one DealProposal and File at a time to our infrastructure.
+// export interface Upload {
+//   dealProposal: O.DealProposal;
+//   file: File;
+// }
 
 export default class UploadItem extends React.Component<any> {
   state = {
