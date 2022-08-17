@@ -103,9 +103,8 @@ export default class UploadPage extends React.Component<any> {
     const dealProposal = O.generateDealProposal(executorAddress, dealConfig, file);
     const dealId = await O.proposeDeal(dealProposal);
 
-
     return this.setState({
-      files: [{ id: `file-${new Date().getTime()}`, data: file }, ...this.state.files],
+      files: [{ id: `file-${new Date().getTime()}`, data: file, dealId }, ...this.state.files],
     });
 
 

@@ -80,6 +80,9 @@ export enum DealStatus { NON, PROPOSED, ACCEPTED, REJECTED, EXPIRED, COMPLETED ,
 export function generateDealProposal(
     executorAddress: string, dealConfiguration: DealConfiguration, file: File): DealProposal
 {
+    // TODO: Need to get the CID and Blake3 hash of the file somehow
+    // Either you do this in the browser or you pre-batch the file into staging, process it, then get the CID and Blake3 hash
+
     return {} as DealProposal;
 }
 
