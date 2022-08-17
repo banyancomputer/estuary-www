@@ -4,7 +4,7 @@ import tstyles from '@pages/table.module.scss';
 import * as React from 'react';
 import * as U from '@common/utilities';
 import * as R from '@common/requests';
-import * as O from '@common/offers';
+import * as O from '@common/ethDeal';
 import * as C from '@common/constants';
 
 import ProgressCard from '@components/ProgressCard';
@@ -75,8 +75,11 @@ function HomePage(props: any) {
       // Get the users Ethereum address
       const userAddress = Cookies.get(C.providerData).address;
 
+      // The Stat Reps for all files the user has uploaded to Estuary
       const files = await R.get(`/content/stats?offset=${state.offset}&limit=${state.limit}`, props.api);
+      // A users aggregated stats
       const stats = await R.get('/user/stats', props.api);
+      // All offers the User has submitted to chain
       const offers = await O.getOffers(userAddress);
 
       if (files && !files.error) {
@@ -164,7 +167,6 @@ function HomePage(props: any) {
               {state.files && state.files.length
                 ? state.files.map((data, index) => {
                     const fileURL = `https://dweb.link/ipfs/${data.cid['/']}`;
-                    console.log(fileURL);
 
                     let name = '...';
                     if (data && data.filename) {
@@ -174,7 +176,9 @@ function HomePage(props: any) {
                       name = '/';
                     }
 
+                    // Get an Enum describing the deal status
                     let offerStatus = O.getOfferStatus(data.cid['/'], state.offers);
+                    // And a string describing the deal status
                     let offerDescription = O.offerDescription(offerStatus);
 
                     return (
@@ -189,7 +193,10 @@ function HomePage(props: any) {
                           </a>
                         </td>
                         <td className={tstyles.td}>{data.aggregatedFiles + 1}</td>
-                        <td className={tstyles.td}>{<a href={`/deals/${data.cid['/']}`}>{offerDescription}</a>}</td>
+                        {/*TODO (al): Right now the user shouldn't be able to access the deals page*/}
+                        {/*They make deals upfront and can see a very simple status here*/}
+                        {/*<td className={tstyles.td}>{<a href={`/deals/${String(data.id).padStart(9, '0')}`}>{offerDescription}</a>}</td>*/}
+                        <td className={tstyles.td}>{offerDescription}</td>
                       </tr>
                     );
                   })

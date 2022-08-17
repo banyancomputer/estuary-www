@@ -4,6 +4,9 @@ import * as React from 'react';
 import * as U from '@common/utilities';
 import * as C from '@common/constants';
 import * as R from '@common/requests';
+import * as O from '@common/ethDeal';
+
+import * as ipfs from 'ipfs-core';
 
 import Page from '@components/Page';
 import Navigation from '@components/Navigation';
@@ -15,6 +18,7 @@ import UploadList from '@components/UploadList';
 import Button from '@components/Button';
 
 import { H1, H2, H3, H4, P } from '@components/Typography';
+import {Cookies} from "js-cookie";
 
 export async function getServerSideProps(context) {
   const viewer = await U.getViewerFromHeader(context.req.headers);
@@ -42,6 +46,10 @@ export async function getServerSideProps(context) {
   };
 }
 
+/**
+ * Note (al): For my own sanity, I'm going to reduce what this page does to handling single-file uploads.
+ * TODO: Re-implement multi-file uploads.
+ */
 export default class UploadPage extends React.Component<any> {
   list = React.createRef<any>();
 
@@ -49,14 +57,17 @@ export default class UploadPage extends React.Component<any> {
     files: [],
   };
 
+  // Upload any files in the queue
   _handleUpload = () => {
     return this.list.current.uploadAll();
   };
 
+  // Remove a single file from the list.
   _handleRemove = (id) => {
     this.setState({ files: this.state.files.filter((each) => each.id !== id) });
   };
 
+  // Remove all files from the list.
   _handleFlush = () => {
     this.setState({ files: [] });
   };
@@ -68,31 +79,56 @@ export default class UploadPage extends React.Component<any> {
     }
 
     // NOTE(jim): Prevents small files from being made directly into deals.
-    if (file.size < this.props.viewer.settings.fileStagingThreshold) {
-      return this.setState({
-        files: [{ id: `file-${new Date().getTime()}`, data: file, estimation: null, price: null }, ...this.state.files],
-      });
-    }
+    // NOTE (al): In the future it would be nice if any files that are too small get batched up into a single deal.
+    // For now all files should get handled the same way
+    // if (file.size < this.props.viewer.settings.fileStagingThreshold) {
+    //   return this.setState({
+    //     files: [{ id: `file-${new Date().getTime()}`, data: file, estimation: null, price: null }, ...this.state.files],
+    //   });
+    // }
+    //
+    // // note (al): For now we just fetch a Default Deal Configuration and use that to estimate the price of the file.
 
-    const response = await R.post(
-      '/deals/estimate',
-      {
-        size: file.size,
-        replication: this.props.viewer.settings.replication,
-        durationBlks: this.props.viewer.settings.dealDuration,
-        verified: this.props.viewer.settings.verified,
-      },
-      this.props.api
-    );
+    // In order to submit a deal to-chain: We need to know:
+    // 1. Who's making the deal
+    const creatorAddress = Cookies.get(C.providerData).address;
 
-    const local = await fetch('/api/fil-usd');
-    const { price } = await local.json();
+    // 2. Who to make a deal with
+    const executorAddress = O.defaultExecutorAddress
 
-    const estimate = response && response.totalAttoFil ? response.totalAttoFil : null;
+    // 3. What sort of deal the creator wants to make. For now we'll just use the default deal configuration.
+    const dealConfig = O.DefaultDealConfiguration;
+
+    // Then you generate a proposal for the deal and submit it to the chain.
+    const dealProposal = O.generateDealProposal(executorAddress, dealConfig, file);
+    const dealId = await O.proposeDeal(dealProposal);
+
 
     return this.setState({
-      files: [{ id: `file-${new Date().getTime()}`, data: file, estimation: estimate, price }, ...this.state.files],
+      files: [{ id: `file-${new Date().getTime()}`, data: file }, ...this.state.files],
     });
+
+
+    // note (al) : this hangs if the file is too small.
+    // const response = await R.post(
+    //   '/deals/estimate',
+    //   {
+    //     size: file.size,
+    //     replication: this.props.viewer.settings.replication,
+    //     durationBlks: this.props.viewer.settings.dealDuration,
+    //     verified: this.props.viewer.settings.verified,
+    //   },
+    //   this.props.api
+    // );
+
+    // const local = await fetch('/api/fil-usd');
+    // const { price } = await local.json();
+    //
+    // const estimate = response && response.totalAttoFil ? response.totalAttoFil : null;
+    //
+    // return this.setState({
+    //   files: [{ id: `file-${new Date().getTime()}`, data: file, estimation: estimate, price }, ...this.state.files],
+    // });
   };
 
   render() {

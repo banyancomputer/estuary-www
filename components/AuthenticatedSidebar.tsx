@@ -36,9 +36,11 @@ function AuthenticatedLayout(props: any) {
       {/*<a className={styles.item} href="/staging" style={props.active === 'STAGING' ? { color: `var(--main-primary)` } : null}>*/}
       {/*  Staging*/}
       {/*</a>*/}
-      <a className={styles.item} href="/deals" style={props.active === 'DEALS' ? { color: `var(--main-primary)` } : null}>
-        Deals
-      </a>
+
+      {/*  TOOD: atm deal status isn't displayed in depth to the user but this should maybe change */}
+      {/*<a className={styles.item} href="/deals" style={props.active === 'DEALS' ? { color: `var(--main-primary)` } : null}>*/}
+      {/*  Deals*/}
+      {/*</a>*/}
       {/*<a className={styles.item} href="/deals/debug" style={props.active === 'DEALS_DEBUG' ? { color: `var(--main-primary)` } : null}>*/}
       {/*  Debug*/}
       {/*</a>*/}

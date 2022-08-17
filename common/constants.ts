@@ -37,6 +37,13 @@ export const siweNonce = 'SIWE_NONCE';
 // Cookie for holding what provider the user is using
 export const providerData = 'PROVIDER_DATA';
 
+// A statsResp Type to handle responses from /contents/stats
+export interface StatsResp {
+  id: string;
+  cid: string;
+  filename: string;
+}
+
 // NOTE(jim)
 // Valid username regex
 export const regex = {
