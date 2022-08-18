@@ -30,10 +30,11 @@ export const siweNonce = 'SIWE_NONCE';
 export const providerData = 'PROVIDER_DATA';
 
 // A statsResp Type to handle responses from /contents/stats
-export interface StatsResp {
+export type StatsResp = {
   id: string;
   cid: string;
   filename: string;
+  deal_id: string;
 }
 
 // NOTE(jim)

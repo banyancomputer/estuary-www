@@ -5,6 +5,7 @@ import * as U from '@common/utilities';
 import * as C from '@common/constants';
 import * as R from '@common/requests';
 import * as O from '@common/ethDeal';
+import { Upload } from "@components/UploadItem";
 
 import * as ipfs from 'ipfs-core';
 
@@ -46,7 +47,6 @@ export async function getServerSideProps(context) {
   };
 }
 
-import { Up}
 
 /**
  * Note (al): For my own sanity, I'm going to reduce what this page does to handling single-file uploads.
@@ -76,6 +76,7 @@ export default class UploadPage extends React.Component<any> {
 
   // Process a file into a DealProposal, CID, and Blake3 Hash.
   _handleFile = async (file) => {
+    console.log('_handleFile', file);
     if (!file) {
       console.log('MISSING DATA');
       return;
@@ -94,16 +95,17 @@ export default class UploadPage extends React.Component<any> {
 
     // In order to submit a deal to-chain: We need to know:
     // 1. Who's making the deal
-    const creatorAddress = Cookies.get(C.providerData).address;
+    // const creatorAddress = Cookies.get(C.providerData).address;
     // 2. Who to make a deal with
     const executorAddress = O.defaultExecutorAddress
     // 3. What sort of deal the creator wants to make. For now we'll just use the default deal configuration.
     const dealConfig = O.DefaultDealConfiguration;
     // Then you generate a proposal for the deal.
     const upload = {
+        // This generates a deal proposal for the file w/o an IPFS cid or Blake3 hash.
         dealProposal: O.generateDealProposal(executorAddress, dealConfig, file),
         file,
-    }
+    } as Upload;
 
     // Record the new Upload in our state.
     return this.setState({
@@ -168,7 +170,12 @@ export default class UploadPage extends React.Component<any> {
                   </Button>
                 </div>
 
-                <UploadList ref={this.list} files={this.state.uploads} viewer={this.props.viewer} onRemove={this._handleRemove} host={this.props.api} />
+                <UploadList
+                    ref={this.list} // Bind the list to the component so we can upload all at once.
+                    uploads={this.state.uploads}
+                    viewer={this.props.viewer}
+                    onRemove={this._handleRemove}
+                    host={this.props.api} />
               </React.Fragment>
             ) : null}
           </SingleColumnLayout>

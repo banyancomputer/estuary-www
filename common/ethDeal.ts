@@ -56,23 +56,27 @@ export type DealProposal = {
     file_blake3: string, // The Blake3 hash of the file to be uploaded
 }
 
-/**
- * This represents a deal that has been finalized and exists on chain
- */
-export type Deal = {
-    // TODO: Figure out what additional fields we need to read from the smart contract
-    // Or rather what data you can read from the smart contract
-}
 
 /**
  * The different states a deal can be in.
  */
 export enum DealStatus { NON, PROPOSED, ACCEPTED, REJECTED, EXPIRED, COMPLETED , WITHDRAWN }
 
+/**
+ * This represents a deal that has been finalized and exists on chain
+ */
+export type Deal = {
+    // TODO: Figure out what additional fields we need to read from the smart contract
+    // Or rather what data you can read from the smart contract
+    status: DealStatus, // The status of the deal
+}
+
 /* Functions */
 
+// TODO (al): the names of these functions are not great.
+
 /**
- * description: This function generates a DealProposal from a DealConfiguration.
+ * description: This function generates an empty DealProposal from a DealConfiguration, but no CID or Blake3 hash.
  * @param executorAddress The address of the Executor to propose the deal to
  * @param dealConfiguration The DealConfiguration to use to generate the DealProposal
  * @param file The file to be uploaded
@@ -86,7 +90,20 @@ export function generateDealProposal(
     return {} as DealProposal;
 }
 
-export function dealStatusDescription(dealStatus: DealStatus): string {
+/**
+ * description: This function finalizes a DealProposal with a CID and Blake3 hash.
+ * @param dealProposal The DealProposal to finalize
+ * @param cid The CID of the file to be uploaded
+ * @param blake3 The Blake3 hash of the file to be uploaded
+ */
+export function finalizeDealProposal(dealProposal: DealProposal, cid: string, blake3: string): DealProposal
+{
+    dealProposal.file_cid = cid;
+    dealProposal.file_blake3 = blake3;
+    return dealProposal;
+}
+
+export function getDealStatusDescription(dealStatus: DealStatus): string {
     switch (dealStatus) {
         case DealStatus.NON:
             return 'Non';
@@ -110,8 +127,10 @@ export function dealStatusDescription(dealStatus: DealStatus): string {
 /* For querying and interacting with the blockchain */
 
 // Get Offer MetaData by its on-chain ID
-export async function getDealByID(id: number): Promise<Deal> {
-    return {} as Deal;
+export async function getDealByID(id: number): Promise<Deal | undefined> {
+    return {
+        status: DealStatus.NON,
+    } as Deal;
 }
 
 // Get all Offers for associated with the given address

@@ -10,6 +10,7 @@ import ProgressBlock from '@components/ProgressBlock';
 import ActionRow from '@components/ActionRow';
 import LoaderSpinner from '@components/LoaderSpinner';
 import * as O from "@common/ethDeal";
+import {finalizeDealProposal} from "@common/ethDeal";
 
 export class PinStatusElement extends React.Component<any> {
   state = { pinned: false, delegates: ['none'] };
@@ -54,12 +55,22 @@ export class PinStatusElement extends React.Component<any> {
   }
 }
 
-// We're uploading one DealProposal and File at a time to our infrastructure.
-// export interface Upload {
-//   dealProposal: O.DealProposal;
-//   file: File;
-// }
+// Interface that describes the contents of a single Upload
+export interface Upload {
+  dealProposal: O.DealProposal;
+  file: File;
+}
 
+// Long-winded way of describing return type of /content/add endpoint
+export interface ContentAddResponse {
+  cid: string;
+  blake3: string; // TODO: add blake3 to the response
+  retrievalUrl: string;
+  EstuaryId: string; // I feel like this is a bad name. TODO: rename
+  Providers: string[]; // note/TODO (al): Not really sure what this is for...
+}
+
+// Class that describes how a single Upload is handled
 export default class UploadItem extends React.Component<any> {
   state = {
     loaded: 0,
@@ -68,7 +79,7 @@ export default class UploadItem extends React.Component<any> {
     secondsElapsed: 0,
     bytesPerSecond: 0,
     staging: !this.props.file.estimation,
-    final: null,
+    contentAddResponse: null,
   };
 
   upload = async () => {
@@ -87,19 +98,13 @@ export default class UploadItem extends React.Component<any> {
       return;
     }
 
-    const formData = new FormData();
-
-    const { data } = this.props.file;
-
-    formData.append('data', data, data.filename);
-    // TODO(jim):
-    // We really don't need to be making this requests from the client
-    const token = Cookies.get(C.auth);
-
+    // Declare a Request object to handle the upload.
+    // We use the Request object to track the upload's progress.
     let xhr = new XMLHttpRequest();
     let startTime = new Date().getTime();
     let secondsElapsed = 0;
 
+    // A handler for tracking the progress of the Upload.
     xhr.upload.onprogress = async (event) => {
       if (!startTime) {
         startTime = new Date().getTime();
@@ -119,12 +124,14 @@ export default class UploadItem extends React.Component<any> {
       });
     };
 
+    // A handler for catching upload errors.
     xhr.upload.onerror = async () => {
-      alert(`Error during the upload: ${xhr.status}`);
+      alert(`Error uploading file to staging: ${xhr.status}`);
       startTime = null;
       secondsElapsed = 0;
     };
 
+    // A handler for catching upload success.
     xhr.onloadend = (event: any) => {
       if (!event.target || !event.target.response) {
         return
@@ -133,31 +140,64 @@ export default class UploadItem extends React.Component<any> {
       startTime = null;
       secondsElapsed = 0;
       if (event.target.status === 200) {
-        let json = {}
+        let contentAddResponse = {}
         try {
-          json = JSON.parse(event.target.response);
+          // This returns a JSON object with the CID and the Blake3 hash of the file.
+          contentAddResponse = JSON.parse(event.target.response) as ContentAddResponse;
         } catch (e) {
           console.log(e);
         }
-        this.setState({ ...this.state, final: json });
+        this.setState({ ...this.state, contentAddResponse });
+        this.postDealProposal();
       } else {
         alert(`[${event.target.status}]Error during the upload: ${event.target.response}`);
       }
     };
+
+    // Declare a new FormData object to hold our Upload data.
+    const formData = new FormData();
+    // Add our data to the FormData object.
+    formData.append('data', this.props.file, this.props.file.filename);
+    // Extract our Auth Token from the cookies.
+    const token = Cookies.get(C.auth);
 
     let targetURL = `${C.api.host}/content/add`;
     if (this.props.viewer.settings.uploadEndpoints && this.props.viewer.settings.uploadEndpoints.length) {
       targetURL = this.props.viewer.settings.uploadEndpoints[0];
     }
 
+    /* TODO: Why isn't this just in a Post Request? */
     xhr.open('POST', targetURL);
     xhr.setRequestHeader('Authorization', `Bearer ${token}`);
     xhr.send(formData);
     this.setState({ ...this.state, loaded: 1 });
   };
 
+  // This is called once the Upload is complete.
+  // It posts a DealProposal to the Ethereum network and records the DealID in the database.
+  postDealProposal = async () => {
+    // Extract the CID and the Blake3 hash of the file we uploaded.
+    let {cid, blake3 } = this.state.contentAddResponse;
+    if (!cid || !blake3) {
+        alert('Error: CID or Blake3 hash not found!');
+        return;
+    }
+    // Finalize the DealProposal.
+    let dealProposal = finalizeDealProposal(this.props.dealProposal, cid, blake3);
+    // Post the DealProposal to the Ethereum network.
+    let dealId = await O.proposeDeal(dealProposal);
+    if (!dealId) {
+      alert('Error: Could not post DealProposal to the Ethereum network.');
+      return;
+    }
+    console.log('dealProposal', dealProposal);
+    console.log('dealId', dealId);
+    // Record the DealID in the database.
+    // TODO: Implement route for this!
+  }
+
   render() {
-    const isLoading = !this.state.final && this.state.loaded > 0;
+    const isLoading = !this.state.contentAddResponse && this.state.loaded > 0;
 
     let targetURL = `${C.api.host}/content/add`;
     if (this.props.viewer.settings.uploadEndpoints && this.props.viewer.settings.uploadEndpoints.length) {
@@ -168,18 +208,18 @@ export default class UploadItem extends React.Component<any> {
     // States getting messy here, need to refactor this component.
     // Not sure if this will be an ongoing problem of tracking pin status.
     let maybePinStatusElement = null;
-    if (this.state.final) {
-      maybePinStatusElement = <PinStatusElement id={this.state.final.estuaryId} host={this.props.host} />;
+    if (this.state.contentAddResponse) {
+      maybePinStatusElement = <PinStatusElement id={this.state.contentAddResponse.estuaryId} host={this.props.host} />;
     }
 
     return (
       <section className={styles.item}>
-        {this.state.final ? (
+        {this.state.contentAddResponse ? (
           <React.Fragment>
             <ActionRow isHeading style={{ fontSize: '0.9rem', fontWeight: 500, background: `var(--status-success-bright)` }}>
               {this.props.file.data.name} uploaded to our node!
             </ActionRow>
-            <ActionRow>https://dweb.link/ipfs/{this.state.final.cid}</ActionRow>
+            <ActionRow>https://dweb.link/ipfs/{this.state.contentAddResponse.cid}</ActionRow>
             {maybePinStatusElement}
             {this.props.file.estimation ? (
               <ActionRow style={{ background: `var(--status-success-bright)` }}>Filecoin Deals are being mmade for {this.props.file.data.name}.</ActionRow>
@@ -202,12 +242,12 @@ export default class UploadItem extends React.Component<any> {
               </div>
               {!isLoading ? (
                 <div className={styles.right}>
-                  {this.state.final ? null : (
+                  {this.state.contentAddResponse ? null : (
                     <span className={styles.button} onClick={this.upload}>
                       {this.props.file.estimination ? `Upload` : `Upload`}
                     </span>
                   )}
-                  {!this.state.final ? (
+                  {!this.state.contentAddResponse ? (
                     <span className={styles.button} onClick={() => this.props.onRemove(this.props.file.id)}>
                       Remove
                     </span>

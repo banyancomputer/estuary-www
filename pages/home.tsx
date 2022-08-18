@@ -21,6 +21,7 @@ import AlertPanel from '@components/AlertPanel';
 
 import { H1, H2, H3, H4, P } from '@components/Typography';
 import Cookies from 'js-cookie';
+import {getDealByID} from "@common/ethDeal";
 
 const INCREMENT = 1000;
 
@@ -65,9 +66,6 @@ function HomePage(props: any) {
     stats: null,
     offset: 0,
     limit: INCREMENT,
-
-    // All offers the User has submitted to chain
-    offers: []
   });
 
   React.useEffect(() => {
@@ -79,11 +77,9 @@ function HomePage(props: any) {
       const files = await R.get(`/content/stats?offset=${state.offset}&limit=${state.limit}`, props.api);
       // A users aggregated stats
       const stats = await R.get('/user/stats', props.api);
-      // All offers the User has submitted to chain
-      const offers = await O.getOffers(userAddress);
 
       if (files && !files.error) {
-        setState({ ...state, files, stats, offers });
+        setState({ ...state, files, stats });
       }
     };
 
@@ -121,8 +117,6 @@ function HomePage(props: any) {
             <H2>Files</H2>
             <P style={{ marginTop: 16 }}>
               Files that you upload to Banyan are listed here. <br />
-              You can configure deals for files on an individual basis, and they will eventually be pinned by an IPFS node. <br />
-              Deals you configure will show up here once they are confirmed.
             </P>
           </PageHeader>
         )}
@@ -166,20 +160,35 @@ function HomePage(props: any) {
               </tr>
               {state.files && state.files.length
                 ? state.files.map((data, index) => {
+
+                    // Bind the data to a StatsResp object
+                    let fileStats = data as C.StatsResp;
+
                     const fileURL = `https://dweb.link/ipfs/${data.cid['/']}`;
 
                     let name = '...';
-                    if (data && data.filename) {
+                    if (fileStats && fileStats.filename) {
                       name = data.filename;
                     }
                     if (name === 'aggregate') {
                       name = '/';
                     }
 
-                    // Get an Enum describing the deal status
-                    let offerStatus = O.getOfferStatus(data.cid['/'], state.offers);
-                    // And a string describing the deal status
-                    let offerDescription = O.offerDescription(offerStatus);
+                    // Extract the deal ID from the file stats object
+                    const dealId = Number(fileStats.deal_id);
+                    let dealStatus = O.DealStatus.NON;
+                    if (dealId) {
+                      // If there is a deal ID, retrieve the deal
+                      // TODO: Figure out what is exposed by the response that is returned by the API
+                      const deal: O.Deal = getDealByID(dealId);
+                      if (deal) {
+                        dealStatus = deal.status;
+                      } else {
+                        console.error("Couldn't find deal with ID", dealId);
+                      }
+                    }
+
+                    let dealStatusDescription = O.getDealStatusDescription(dealStatus);
 
                     return (
                       <tr key={`${data.cid['/']}-${index}`} className={tstyles.tr}>
@@ -196,7 +205,7 @@ function HomePage(props: any) {
                         {/*TODO (al): Right now the user shouldn't be able to access the deals page*/}
                         {/*They make deals upfront and can see a very simple status here*/}
                         {/*<td className={tstyles.td}>{<a href={`/deals/${String(data.id).padStart(9, '0')}`}>{offerDescription}</a>}</td>*/}
-                        <td className={tstyles.td}>{offerDescription}</td>
+                        <td className={tstyles.td}>{dealStatusDescription}</td>
                       </tr>
                     );
                   })
