@@ -65,10 +65,10 @@ export interface Upload {
 // Long-winded way of describing return type of /content/add endpoint
 export interface ContentAddResponse {
   cid: string;
-  blake3: string; // TODO: add blake3 to the response
+  blake3hash: string; // TODO: add blake3 to the response
   retrievalUrl: string;
-  EstuaryId: string; // I feel like this is a bad name. TODO: rename
-  Providers: string[]; // note/TODO (al): Not really sure what this is for...
+  estuaryId: string; // I feel like this is a bad name. TODO: rename
+  providers: string[]; // note/TODO (al): Not really sure what this is for...
 }
 
 // Class that describes how a single Upload is handled
@@ -175,15 +175,18 @@ export default class UploadItem extends React.Component<any> {
   // This is called once the Upload is complete.
   // It posts a DealProposal to the Ethereum network and records the DealID in the database.
   postDealProposal = async () => {
+    console.log("Response: ", this.state.contentAddResponse);
     // Extract the CID and the Blake3 hash of the file we uploaded.
-    let {cid, blake3 } = this.state.contentAddResponse;
+    let { cid, blake3hash, estuaryId } = this.state.contentAddResponse;
+    console.log("CID: ", cid);
+    console.log("Blake3: ", blake3hash);
     let {id, dealProposal} = this.props.upload;
-    if (!cid || !blake3) {
+    if (!cid || !blake3hash) {
         alert('Error: CID or Blake3 hash not found!');
         return;
     }
     // Finalize the DealProposal.
-    dealProposal = finalizeDealProposal(dealProposal, cid, blake3);
+    dealProposal = finalizeDealProposal(dealProposal, cid, blake3hash);
     // Post the DealProposal to the Ethereum network.
     let dealId = await O.proposeDeal(dealProposal);
     if (!dealId) {
@@ -193,7 +196,12 @@ export default class UploadItem extends React.Component<any> {
     console.log('dealProposal', dealProposal);
     console.log('dealId', dealId);
     // Record the DealID in the database.
-    // TODO: Implement route for this!
+    await R.post('/content/update-deal-id', { estuaryId, dealId }).then((res) => {
+      if (res.status !== 200) {
+        alert('Error: Could not record DealID in the database.');
+      }
+      return;
+    });
   }
 
   render() {
@@ -221,12 +229,14 @@ export default class UploadItem extends React.Component<any> {
             </ActionRow>
             <ActionRow>https://dweb.link/ipfs/{this.state.contentAddResponse.cid}</ActionRow>
             {maybePinStatusElement}
-            {this.props.file.estimation ? (
-              <ActionRow style={{ background: `var(--status-success-bright)` }}>Filecoin Deals are being mmade for {this.props.file.data.name}.</ActionRow>
+            {this.props.upload.dealProposal.price ? (
+              <ActionRow style={{ background: `var(--status-success-bright)` }}>Filecoin Deals are being made for {this.props.file.data.name}.</ActionRow>
             ) : (
               <ActionRow>{this.props.upload.file.name} was added to a staging bucket for a batched Filecoin deal.</ActionRow>
             )}
-            {this.props.file.estimation ? (
+            {/*TODO: Figure out how all this is displayed to a user*/}
+            {/*{this.props.file.estimation ? (*/}
+            { null ? (
               <ActionRow onClick={() => window.open('/deals')}>→ See all Filecoin deals.</ActionRow>
             ) : (
               <ActionRow onClick={() => window.open('/staging')}>→ View all staging bucket data.</ActionRow>

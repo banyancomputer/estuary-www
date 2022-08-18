@@ -150,5 +150,5 @@ export async function getUsersOffers(): Promise<Deal[]> {
 
 // Submit a deal to chain. Returns the ID of the deal on chain.
 export async function proposeDeal(dealProposal: DealProposal): Promise<number> {
-    return 0;
+    return 1;
 }

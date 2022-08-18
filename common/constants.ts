@@ -34,7 +34,7 @@ export type StatsResp = {
   id: string;
   cid: string;
   filename: string;
-  deal_id: string;
+  dealId: string;
 }
 
 // NOTE(jim)
