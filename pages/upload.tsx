@@ -66,7 +66,7 @@ export default class UploadPage extends React.Component<any> {
 
   // Remove a single file from the list.
   _handleRemove = (id) => {
-    this.setState({ files: this.state.uploads.filter((each) => each.id !== id) });
+    this.setState({ uploads: this.state.uploads.filter((each) => each.id !== id) });
   };
 
   // Remove all files from the list.
@@ -103,14 +103,19 @@ export default class UploadPage extends React.Component<any> {
     // Then you generate a proposal for the deal.
     const upload = {
         // This generates a deal proposal for the file w/o an IPFS cid or Blake3 hash.
+        id: `file-${new Date().getTime()}`,
         dealProposal: O.generateDealProposal(executorAddress, dealConfig, file),
         file,
     } as Upload;
 
     // Record the new Upload in our state.
     return this.setState({
-      files: [{ id: `file-${new Date().getTime()}`, upload }, ...this.state.uploads],
+      uploads: [upload, ...this.state.uploads],
     });
+
+    // return this.setState({
+    //   files: [{ id: `file-${new Date().getTime()}`, data: file, estimation: null, price: null }, ...this.state.files],
+    // });
 
 
     // note (al) : this hangs if the file is too small.
@@ -177,7 +182,7 @@ export default class UploadPage extends React.Component<any> {
                     onRemove={this._handleRemove}
                     host={this.props.api} />
               </React.Fragment>
-            ) : null}
+            ) : <P>No files queued.</P>}
           </SingleColumnLayout>
         </AuthenticatedLayout>
       </Page>

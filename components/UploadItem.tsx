@@ -57,6 +57,7 @@ export class PinStatusElement extends React.Component<any> {
 
 // Interface that describes the contents of a single Upload
 export interface Upload {
+  id: string;
   dealProposal: O.DealProposal;
   file: File;
 }
@@ -74,27 +75,25 @@ export interface ContentAddResponse {
 export default class UploadItem extends React.Component<any> {
   state = {
     loaded: 0,
-    total: this.props.file.data.size,
+    total: this.props.upload.file.size,
     secondsRemaining: 0,
     secondsElapsed: 0,
     bytesPerSecond: 0,
-    staging: !this.props.file.estimation,
+    // staging: !this.props.file.estimation,
     contentAddResponse: null,
   };
 
   upload = async () => {
+    let {id, file} = this.props.upload;
+    console.log("Handling upload", id);
+
     if (this.state.loaded > 0) {
-      console.log('already attempted', this.props.file.id);
+      console.log('already attempted', id);
       return;
     }
 
-    if (!this.props.file) {
+    if (!file) {
       alert('Broken file constructor.');
-      return;
-    }
-
-    if (!this.props.file.data) {
-      alert('Broken data file constructor.');
       return;
     }
 
@@ -157,7 +156,7 @@ export default class UploadItem extends React.Component<any> {
     // Declare a new FormData object to hold our Upload data.
     const formData = new FormData();
     // Add our data to the FormData object.
-    formData.append('data', this.props.file, this.props.file.filename);
+    formData.append('data', file, file.filename);
     // Extract our Auth Token from the cookies.
     const token = Cookies.get(C.auth);
 
@@ -178,12 +177,13 @@ export default class UploadItem extends React.Component<any> {
   postDealProposal = async () => {
     // Extract the CID and the Blake3 hash of the file we uploaded.
     let {cid, blake3 } = this.state.contentAddResponse;
+    let {id, dealProposal} = this.props.upload;
     if (!cid || !blake3) {
         alert('Error: CID or Blake3 hash not found!');
         return;
     }
     // Finalize the DealProposal.
-    let dealProposal = finalizeDealProposal(this.props.dealProposal, cid, blake3);
+    dealProposal = finalizeDealProposal(dealProposal, cid, blake3);
     // Post the DealProposal to the Ethereum network.
     let dealId = await O.proposeDeal(dealProposal);
     if (!dealId) {
@@ -224,7 +224,7 @@ export default class UploadItem extends React.Component<any> {
             {this.props.file.estimation ? (
               <ActionRow style={{ background: `var(--status-success-bright)` }}>Filecoin Deals are being mmade for {this.props.file.data.name}.</ActionRow>
             ) : (
-              <ActionRow>{this.props.file.data.name} was added to a staging bucket for a batched Filecoin deal.</ActionRow>
+              <ActionRow>{this.props.upload.file.name} was added to a staging bucket for a batched Filecoin deal.</ActionRow>
             )}
             {this.props.file.estimation ? (
               <ActionRow onClick={() => window.open('/deals')}>→ See all Filecoin deals.</ActionRow>
@@ -237,37 +237,46 @@ export default class UploadItem extends React.Component<any> {
             <div className={styles.actions}>
               <div className={styles.left}>
                 <ActionRow isHeading style={{ fontSize: '0.9rem', fontWeight: 500, background: isLoading ? `#000` : null, color: isLoading ? `#fff` : null }}>
-                  {this.props.file.data.name} {isLoading ? <LoaderSpinner style={{ marginLeft: 8, height: 10, width: 10 }} /> : null}
+                  {this.props.upload.file.filename} {isLoading ? <LoaderSpinner style={{ marginLeft: 8, height: 10, width: 10 }} /> : null}
                 </ActionRow>
               </div>
               {!isLoading ? (
                 <div className={styles.right}>
                   {this.state.contentAddResponse ? null : (
                     <span className={styles.button} onClick={this.upload}>
-                      {this.props.file.estimination ? `Upload` : `Upload`}
+                      {/*Note/TODO (al): Huh? Why is this here?*/}
+                      {/*{this.props.file.estimination ? `Upload` : `Upload`}*/}
+                        Upload
                     </span>
                   )}
                   {!this.state.contentAddResponse ? (
-                    <span className={styles.button} onClick={() => this.props.onRemove(this.props.file.id)}>
+                    <span className={styles.button} onClick={() => this.props.onRemove(this.props.upload.id)}>
                       Remove
                     </span>
                   ) : null}
                 </div>
               ) : null}
             </div>
+            {/*TODO: Reimplement This Div with correct Estimation presentation based on the Eth deal*/}
             {!isLoading ? (
               <React.Fragment>
-                <ActionRow>{U.bytesToSize(this.props.file.data.size)}</ActionRow>
-                {this.props.file.estimation ? (
+                <ActionRow>{U.bytesToSize(this.props.upload.file.size)}</ActionRow>
+                {/*{ this.props.upload.file.estimation ? (*/}
+                {null ? (
                   <ActionRow>
-                    Will cost {U.convertFIL(this.props.file.estimation)} FIL ⇄ {(Number(U.convertFIL(this.props.file.estimation)) * Number(this.props.file.price)).toFixed(2)} USD
-                    and this Estuary Node will pay.
+                    {/*Will cost {U.convertFIL(this.props.file.estimation)} FIL ⇄ {(Number(U.convertFIL(this.props.file.estimation)) * Number(this.props.file.price)).toFixed(2)} USD*/}
+                    {/*and this Estuary Node will pay.*/}
+                    Estimation not implemented yet.
                   </ActionRow>
                 ) : (
-                  <ActionRow>{this.props.file.data.name} will be added to staging bucket for a batched deal later.</ActionRow>
+                  <ActionRow>{this.props.upload.file.name} will be added to staging bucket for a batched deal later.</ActionRow>
                 )}
 
-                {this.props.file.estimation && this.props.viewer.settings.verified ? <ActionRow>The Filecoin deal will be verified.</ActionRow> : null}
+                {/*{this.props.file.estimation && this.props.viewer.settings.verified ?*/}
+                {null ? (
+                  <ActionRow>The Filecoin deal will be verified.</ActionRow>
+                  ) : null
+                }
               </React.Fragment>
             ) : null}
             <ActionRow style={{ background: isLoading ? `#000` : null, color: isLoading ? `#fff` : null }}>Data will be sent to {targetURL}</ActionRow>
