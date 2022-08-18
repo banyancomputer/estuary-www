@@ -217,7 +217,7 @@ export default class UploadItem extends React.Component<any> {
         {this.state.contentAddResponse ? (
           <React.Fragment>
             <ActionRow isHeading style={{ fontSize: '0.9rem', fontWeight: 500, background: `var(--status-success-bright)` }}>
-              {this.props.file.data.name} uploaded to our node!
+              {this.props.upload.file.name} uploaded to our node!
             </ActionRow>
             <ActionRow>https://dweb.link/ipfs/{this.state.contentAddResponse.cid}</ActionRow>
             {maybePinStatusElement}
@@ -237,7 +237,7 @@ export default class UploadItem extends React.Component<any> {
             <div className={styles.actions}>
               <div className={styles.left}>
                 <ActionRow isHeading style={{ fontSize: '0.9rem', fontWeight: 500, background: isLoading ? `#000` : null, color: isLoading ? `#fff` : null }}>
-                  {this.props.upload.file.filename} {isLoading ? <LoaderSpinner style={{ marginLeft: 8, height: 10, width: 10 }} /> : null}
+                  {this.props.upload.file.name} {isLoading ? <LoaderSpinner style={{ marginLeft: 8, height: 10, width: 10 }} /> : null}
                 </ActionRow>
               </div>
               {!isLoading ? (
