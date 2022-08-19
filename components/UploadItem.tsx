@@ -275,19 +275,19 @@ export default class UploadItem extends React.Component<any> {
             <ActionRow>https://dweb.link/ipfs/{this.state.contentAddResponse.cid}</ActionRow>
             {/*Pin Status*/}
             {maybePinStatusElement}
-            {/*Price Estimation*/}
-            {/*Note/TODO (al) We maybe don't need this if statement-- if we do error checking correctly the deal should always specify a price*/}
-            {this.props.upload.dealProposal.price && this.props.upload.dealProposal.collateral ? (
+            {/*bounty Estimation*/}
+            {/*Note/TODO (al) We maybe don't need this if statement-- if we do error checking correctly the deal should always specify a bounty*/}
+            {this.props.upload.dealProposal.bounty && this.props.upload.dealProposal.collateral ? (
               <div>
                 <ActionRow style={{ background: `var(--status-success-bright)` }}>
-                  Proposing to store {this.props.upload.file.name} for {this.props.upload.dealProposal.price} {this.props.upload.dealProposal.token_denomination}.
+                  Proposing to store {this.props.upload.file.name} for {this.props.upload.dealProposal.bounty} {this.props.upload.dealProposal.token_denomination}.
                 </ActionRow>
                 <ActionRow style={{ background: `var(--status-success-bright)` }}>
                   Providers requested to put up Collateral of {this.props.upload.dealProposal.collateral} {this.props.upload.dealProposal.token_denomination}.
                 </ActionRow>
               </div>
             ) : (
-              <ActionRow>No price or collateral configured for {this.props.upload.file.name}!</ActionRow>
+              <ActionRow>No bounty or collateral configured for {this.props.upload.file.name}!</ActionRow>
             )}
             {/*TODO: Figure out how all this is displayed to a user. Should they have a view into staging?*/}
             {/*{this.props.file.estimation ? (*/}
@@ -326,14 +326,14 @@ export default class UploadItem extends React.Component<any> {
             {!isLoading ? (
               <React.Fragment>
                 <ActionRow>{U.bytesToSize(this.props.upload.file.size)}</ActionRow>
-                { this.props.upload.dealProposal.price ? (
+                { this.props.upload.dealProposal.bounty ? (
                   <ActionRow>
-                    {/*Will cost {U.convertFIL(this.props.file.estimation)} FIL ⇄ {(Number(U.convertFIL(this.props.file.estimation)) * Number(this.props.file.price)).toFixed(2)} USD*/}
+                    {/*Will cost {U.convertFIL(this.props.file.estimation)} FIL ⇄ {(Number(U.convertFIL(this.props.file.estimation)) * Number(this.props.file.bounty)).toFixed(2)} USD*/}
                     {/*and this Estuary Node will pay.*/}
-                    Estimated cost: {this.props.upload.dealProposal.price} {this.props.upload.dealProposal.token_denomination}
+                    Estimated cost: {this.props.upload.dealProposal.bounty} {this.props.upload.dealProposal.token_denomination}
                   </ActionRow>
                 ) : (
-                  <ActionRow>{this.props.upload.file.name}: no price estimation</ActionRow>
+                  <ActionRow>{this.props.upload.file.name}: no bounty estimation</ActionRow>
                 )}
                 {/*Don't support verified deals atm*/}
                 {/*{this.props.file.estimation && this.props.viewer.settings.verified ?*/}

@@ -63,7 +63,7 @@ export type DealProposal = {
 /**
  * The different states a deal can be in.
  */
-export enum DealStatus { NON, PROPOSED, ACCEPTED, REJECTED, EXPIRED, COMPLETED , WITHDRAWN }
+export enum DealStatus { NON, PROPOSED, ACCEPTED, TIMEDOUT, CANCELLED, COMPLETE , FINALIZING, DONE }
 
 /**
  * This represents a deal that has been finalized and exists on chain
@@ -138,14 +138,16 @@ export function getDealStatusDescription(dealStatus: DealStatus): string {
             return 'Proposed';
         case DealStatus.ACCEPTED:
             return 'Accepted';
-        case DealStatus.REJECTED:
-            return 'Rejected';
-        case DealStatus.EXPIRED:
-            return 'Expired';
-        case DealStatus.COMPLETED:
-            return 'Completed';
-        case DealStatus.WITHDRAWN:
-            return 'Withdrawn';
+        case DealStatus.TIMEDOUT:
+            return 'Timed Out';
+        case DealStatus.CANCELLED:
+            return 'Cancelled';
+        case DealStatus.COMPLETE:
+            return 'Complete';
+        case DealStatus.FINALIZING:
+            return 'Finalizing';
+        case DealStatus.DONE:
+            return 'Done';
         default:
             return 'Unknown';
     }
