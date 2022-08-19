@@ -41,8 +41,9 @@ export class PinStatusElement extends React.Component<any> {
     if (this.state.pinned) {
       return (
         <React.Fragment>
-          <ActionRow>This CID is pinned.</ActionRow>
-          <ActionRow>Delegate {this.state.delegates[0]}</ActionRow>
+          <ActionRow>Your file is pinned on our staging node.</ActionRow>
+          <ActionRow> CID: {this.props.cid}</ActionRow>
+          {/*<ActionRow>Delegate {this.state.delegates[0]}</ActionRow>*/}
         </React.Fragment>
       );
     }
@@ -81,6 +82,8 @@ export default class UploadItem extends React.Component<any> {
     bytesPerSecond: 0,
     // staging: !this.props.file.estimation,
     contentAddResponse: null,
+    dealFinalized: false,
+    dealSubmitted: false,
   };
 
   upload = async () => {
@@ -147,7 +150,8 @@ export default class UploadItem extends React.Component<any> {
           console.log(e);
         }
         this.setState({ ...this.state, contentAddResponse });
-        this.postDealProposal();
+        // Finalize the deal proposal based on the response from the staging server (CID, Blake3 hash, etc.)
+        this.finalizeDealProposal();
       } else {
         alert(`[${event.target.status}]Error during the upload: ${event.target.response}`);
       }
@@ -173,8 +177,8 @@ export default class UploadItem extends React.Component<any> {
   };
 
   // This is called once the Upload is complete.
-  // It posts a DealProposal to the Ethereum network and records the DealID in the database.
-  postDealProposal = async () => {
+  // It finalizes the deal proposal.
+  finalizeDealProposal = async () => {
     console.log("Response: ", this.state.contentAddResponse);
     // Extract the CID and the Blake3 hash of the file we uploaded.
     let { cid, blake3hash, estuaryId } = this.state.contentAddResponse;
@@ -186,7 +190,17 @@ export default class UploadItem extends React.Component<any> {
         return;
     }
     // Finalize the DealProposal.
-    dealProposal = finalizeDealProposal(dealProposal, cid, blake3hash);
+    this.props.upload.dealProposal.cid = cid;
+    this.props.upload.dealProposal.blake3hash = blake3hash;
+    this.setState({ ...this.state, dealFinalized: true });
+    return;
+  }
+
+  // Finally, we post the DealProposal to-chain and update Estuary's state to track it.
+  submitDealProposal = async () => {
+    // Extract the id and the DealProposal from the Upload.
+    let {id, dealProposal} = this.props.upload;
+    let { estuaryId } = this.state.contentAddResponse;
     // Post the DealProposal to the Ethereum network.
     let dealId = await O.proposeDeal(dealProposal);
     if (!dealId) {
@@ -196,11 +210,16 @@ export default class UploadItem extends React.Component<any> {
     console.log('dealProposal', dealProposal);
     console.log('dealId', dealId);
     // Record the DealID in the database.
-    await R.post('/content/update-deal-id', { estuaryId, dealId }).then((res) => {
-      if (res.status !== 200) {
+    await R.post('/content/update-deal-id', { estuaryId, dealId }).then((json) => {
+      // TODO: Figure out appropriate error handling for this.
+      if (!json.dealId) {
         alert('Error: Could not record DealID in the database.');
+        return;
       }
-      return;
+      this.setState({ ...this.state, dealSubmitted: true });
+    }).catch((e) => {
+      alert('Error: Could not record DealID in the database.');
+      console.log(e);
     });
   }
 
@@ -212,35 +231,71 @@ export default class UploadItem extends React.Component<any> {
       targetURL = this.props.viewer.settings.uploadEndpoints[0];
     }
 
+    // note (al): I don't think we need this anymore, but I'm leaving it in for now.
     // TODO(jim)
     // States getting messy here, need to refactor this component.
     // Not sure if this will be an ongoing problem of tracking pin status.
     let maybePinStatusElement = null;
     if (this.state.contentAddResponse) {
-      maybePinStatusElement = <PinStatusElement id={this.state.contentAddResponse.estuaryId} host={this.props.host} />;
+      maybePinStatusElement = <PinStatusElement
+          id={this.state.contentAddResponse.estuaryId}
+          cid={this.state.contentAddResponse.cid}
+          host={this.props.host}
+      />;
     }
 
     return (
       <section className={styles.item}>
+        {/*Have we received a content response?*/}
         {this.state.contentAddResponse ? (
           <React.Fragment>
-            <ActionRow isHeading style={{ fontSize: '0.9rem', fontWeight: 500, background: `var(--status-success-bright)` }}>
-              {this.props.upload.file.name} uploaded to our node!
-            </ActionRow>
+            {/*Message that the upload is complete*/}
+            <div className={styles.actions}>
+              {!this.state.dealSubmitted ? (
+                <div className={styles.left}>
+                  <ActionRow isHeading style={{ fontSize: '0.9rem', fontWeight: 500, background: `var(--status-success-bright)` }}>
+                    {this.props.upload.file.name} staged to our node and ready for hosting!
+                  </ActionRow>
+                  {this.state.dealFinalized ? (
+                    // TODO: Figure out how to make this inline with the above ActionRow.
+                    <div className={styles.right}>
+                       <span className={styles.button} onClick={this.submitDealProposal}>
+                         Submit Deal
+                       </span>
+                    </div>
+                  ) : null }
+                </div>
+              ) : (
+                <ActionRow isHeading style={{ fontSize: '0.9rem', fontWeight: 500, background: `var(--status-success-bright)` }}>
+                  {this.props.upload.file.name} staged to our node and deal submitted to Ethereum!
+                </ActionRow>
+              )}
+            </div>
+            {/*Retrieval Link so they can verify*/}
             <ActionRow>https://dweb.link/ipfs/{this.state.contentAddResponse.cid}</ActionRow>
+            {/*Pin Status*/}
             {maybePinStatusElement}
-            {this.props.upload.dealProposal.price ? (
-              <ActionRow style={{ background: `var(--status-success-bright)` }}>Filecoin Deals are being made for {this.props.file.data.name}.</ActionRow>
+            {/*Price Estimation*/}
+            {/*Note/TODO (al) We maybe don't need this if statement-- if we do error checking correctly the deal should always specify a price*/}
+            {this.props.upload.dealProposal.price && this.props.upload.dealProposal.collateral ? (
+              <div>
+                <ActionRow style={{ background: `var(--status-success-bright)` }}>
+                  Proposing to store {this.props.upload.file.name} for {this.props.upload.dealProposal.price} {this.props.upload.dealProposal.token_denomination}.
+                </ActionRow>
+                <ActionRow style={{ background: `var(--status-success-bright)` }}>
+                  Providers requested to put up Collateral of {this.props.upload.dealProposal.collateral} {this.props.upload.dealProposal.token_denomination}.
+                </ActionRow>
+              </div>
             ) : (
-              <ActionRow>{this.props.upload.file.name} was added to a staging bucket for a batched Filecoin deal.</ActionRow>
+              <ActionRow>No price or collateral configured for {this.props.upload.file.name}!</ActionRow>
             )}
-            {/*TODO: Figure out how all this is displayed to a user*/}
+            {/*TODO: Figure out how all this is displayed to a user. Should they have a view into staging?*/}
             {/*{this.props.file.estimation ? (*/}
-            { null ? (
-              <ActionRow onClick={() => window.open('/deals')}>→ See all Filecoin deals.</ActionRow>
-            ) : (
-              <ActionRow onClick={() => window.open('/staging')}>→ View all staging bucket data.</ActionRow>
-            )}
+            {/*{ null ? (*/}
+            {/*  <ActionRow onClick={() => window.open('/deals')}>→ See all Filecoin deals.</ActionRow>*/}
+            {/*) : (*/}
+            {/*  <ActionRow onClick={() => window.open('/staging')}>→ View all staging bucket data.</ActionRow>*/}
+            {/*)}*/}
           </React.Fragment>
         ) : (
           <React.Fragment>
@@ -271,28 +326,26 @@ export default class UploadItem extends React.Component<any> {
             {!isLoading ? (
               <React.Fragment>
                 <ActionRow>{U.bytesToSize(this.props.upload.file.size)}</ActionRow>
-                {/*{ this.props.upload.file.estimation ? (*/}
-                {null ? (
+                { this.props.upload.dealProposal.price ? (
                   <ActionRow>
                     {/*Will cost {U.convertFIL(this.props.file.estimation)} FIL ⇄ {(Number(U.convertFIL(this.props.file.estimation)) * Number(this.props.file.price)).toFixed(2)} USD*/}
                     {/*and this Estuary Node will pay.*/}
-                    Estimation not implemented yet.
+                    Estimated cost: {this.props.upload.dealProposal.price} {this.props.upload.dealProposal.token_denomination}
                   </ActionRow>
                 ) : (
-                  <ActionRow>{this.props.upload.file.name} will be added to staging bucket for a batched deal later.</ActionRow>
+                  <ActionRow>{this.props.upload.file.name}: no price estimation</ActionRow>
                 )}
-
+                {/*Don't support verified deals atm*/}
                 {/*{this.props.file.estimation && this.props.viewer.settings.verified ?*/}
-                {null ? (
-                  <ActionRow>The Filecoin deal will be verified.</ActionRow>
-                  ) : null
-                }
+                {/*  <ActionRow>The Filecoin deal will be verified.</ActionRow>*/}
+                {/*  ) : null*/}
+                {/*}*/}
               </React.Fragment>
             ) : null}
             <ActionRow style={{ background: isLoading ? `#000` : null, color: isLoading ? `#fff` : null }}>Data will be sent to {targetURL}</ActionRow>
           </React.Fragment>
         )}
-
+        {/*Progress tracker while we're uploading files to staging*/}
         {isLoading ? (
           <ProgressBlock secondsRemaining={this.state.secondsRemaining} bytesPerSecond={this.state.bytesPerSecond} loaded={this.state.loaded} total={this.state.total} />
         ) : null}

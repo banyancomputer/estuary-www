@@ -22,18 +22,21 @@ export type DealConfiguration = {
     proof_frequency: number, // How often Proofs should be submitted, in proofs per block
 
     // TODO: Figure out a better Unit for this
-    bounty_per_byte: number, // The price of the deal in the Token, in $ per Byte
-    collateral_per_byte: number, // The amount of collateral in Ether, in $ per Byte
+    bounty_per_tib: number, // The price of the deal in the Token, in $ per Byte
+    collateral_per_tib: number, // The amount of collateral in Ether, in $ per Byte
     token_denomination: string, // The Token denomination for the collateral
 
     // Everything else needs to be generated based on the file
 }
 
+/* TODO: Find out a better way to do this */
+export const eth_blocks_per_year = 365 * 6344;
+
 export const DefaultDealConfiguration: DealConfiguration = {
-    deal_length_in_blocks: 0,
-    proof_frequency: 0,
-    bounty_per_byte: 0.01,
-    collateral_per_byte: .001,
+    deal_length_in_blocks: eth_blocks_per_year,
+    proof_frequency: 1, // TODO: What is the unit for this?
+    bounty_per_tib: 10.00,
+    collateral_per_tib: .01,
     token_denomination: 'USDC',
 }
 
@@ -85,9 +88,18 @@ export function generateDealProposal(
     executorAddress: string, dealConfiguration: DealConfiguration, file: File): DealProposal
 {
     // TODO: Need to get the CID and Blake3 hash of the file somehow
-    // Either you do this in the browser or you pre-batch the file into staging, process it, then get the CID and Blake3 hash
-
-    return {} as DealProposal;
+    return {
+        executor_address: executorAddress,
+        deal_length_in_blocks: dealConfiguration.deal_length_in_blocks,
+        proof_frequency: dealConfiguration.proof_frequency,
+        bounty: dealConfiguration.bounty_per_tib * file.size, // TODO: This is not the right way to do this
+        collateral: dealConfiguration.collateral_per_tib * file.size, // TODO: This is not the right way to do this
+        token_denomination: dealConfiguration.token_denomination,
+        file_size: file.size,
+        // The deal is not yet finalized, so we don't have a CID or Blake3 hash yet
+        file_cid: undefined,
+        file_blake3: undefined,
+    } as DealProposal;
 }
 
 /**
@@ -101,6 +113,21 @@ export function finalizeDealProposal(dealProposal: DealProposal, cid: string, bl
     dealProposal.file_cid = cid;
     dealProposal.file_blake3 = blake3;
     return dealProposal;
+}
+
+/**
+ * description: This function determines whether a DealProposal is finalized
+ * @param dealProposal The DealProposal to check
+ * @returns true if the DealProposal is finalized, false otherwise
+ */
+export function isDealProposalFinalized(dealProposal: DealProposal): boolean
+{
+    let ret = dealProposal.file_cid != null && dealProposal.file_blake3 != null;
+    console.log(
+        `isDealProposalFinalized: ${ret}`,
+        dealProposal.file_cid, dealProposal.file_blake3
+    );
+    return ret;
 }
 
 export function getDealStatusDescription(dealStatus: DealStatus): string {

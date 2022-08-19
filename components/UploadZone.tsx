@@ -186,16 +186,17 @@ export default class UploadZone extends React.Component<any> {
               Add a file
             </Button>
 
-            <Button
-              style={{
-                marginBottom: 24,
-                background: 'var(--main-button-background-secondary)',
-                color: 'var(--main-button-text-secondary)',
-              }}
-              href="/upload-cid"
-            >
-              Use a CID instead
-            </Button>
+            {/*Note/TODO (al): Deprecating upload by CID for now */}
+            {/*<Button*/}
+            {/*  style={{*/}
+            {/*    marginBottom: 24,*/}
+            {/*    background: 'var(--main-button-background-secondary)',*/}
+            {/*    color: 'var(--main-button-text-secondary)',*/}
+            {/*  }}*/}
+            {/*  href="/upload-cid"*/}
+            {/*>*/}
+            {/*  Use a CID instead*/}
+            {/*</Button>*/}
           </div>
         ) : null}
       </React.Fragment>

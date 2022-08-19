@@ -163,9 +163,7 @@ function HomePage(props: any) {
 
                     // Bind the data to a StatsResp object
                     let fileStats = data as C.StatsResp;
-
                     const fileURL = `https://dweb.link/ipfs/${data.cid['/']}`;
-
                     let name = '...';
                     if (fileStats && fileStats.filename) {
                       name = data.filename;
@@ -173,22 +171,19 @@ function HomePage(props: any) {
                     if (name === 'aggregate') {
                       name = '/';
                     }
-
                     // Extract the deal ID from the file stats object
                     const dealId = Number(fileStats.dealId);
                     let dealStatus = O.DealStatus.NON;
                     if (dealId) {
-                      dealStatus = O.DealStatus.PROPOSED;
                       // If there is a deal ID, retrieve the deal
                       // TODO: Figure out what is exposed by the response that is returned by the API
-                      // const deal: O.Deal = getDealByID(dealId);
-                      // if (deal) {
-                      //   dealStatus = deal.status;
-                      // } else {
-                      //   console.error("Couldn't find deal with ID", dealId);
-                      // }
+                      const deal: O.Deal = getDealByID(dealId);
+                      if (deal) {
+                        dealStatus = deal.status;
+                      } else {
+                        console.error("Couldn't find deal with ID", dealId);
+                      }
                     }
-
                     let dealStatusDescription = O.getDealStatusDescription(dealStatus);
 
                     return (

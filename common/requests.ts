@@ -54,17 +54,21 @@ export const post = async (route, payload, host = C.api.host): Promise<any> => {
       return { error: 'You are not authorized.' };
     }
 
-    const j = await r.json();
-    if (!j) {
-      return { error: 'No response from the server.' };
-    }
+    let contentType = r.headers.get('content-type');
+    if (contentType && contentType.indexOf('application/json') !== -1) {
+        const j = await r.json();
+        if (!j) {
+            return { error: 'No response from the server.' };
+        }
 
-    if (j.error) {
-      return { error: j.error };
+        if (j.error) {
+            return { error: j.error };
+        }
+        console.log(route, j);
+        return j;
+    } else {
+      return r;
     }
-
-    console.log(route, j);
-    return j;
   } catch (e) {
     console.log(route, e);
     return { error: 'Something went wrong on our end' };

@@ -71,7 +71,7 @@ export default class UploadPage extends React.Component<any> {
 
   // Remove all files from the list.
   _handleFlush = () => {
-    this.setState({ files: [] });
+    this.setState({ uploads: [] });
   };
 
   // Process a file into a DealProposal, CID, and Blake3 Hash.
@@ -82,23 +82,12 @@ export default class UploadPage extends React.Component<any> {
       return;
     }
 
-    // NOTE(jim): Prevents small files from being made directly into deals.
-    // NOTE (al): In the future it would be nice if any files that are too small get batched up into a single deal.
-    // For now all files should get handled the same way
-    // if (file.size < this.props.viewer.settings.fileStagingThreshold) {
-    //   return this.setState({
-    //     files: [{ id: `file-${new Date().getTime()}`, data: file, estimation: null, price: null }, ...this.state.files],
-    //   });
-    // }
-    //
-    // // note (al): For now we just fetch a Default Deal Configuration and use that to estimate the price of the file.
-
     // In order to submit a deal to-chain: We need to know:
     // 1. Who's making the deal
     // const creatorAddress = Cookies.get(C.providerData).address;
     // 2. Who to make a deal with
     const executorAddress = O.defaultExecutorAddress
-    // 3. What sort of deal the creator wants to make. For now we'll just use the default deal configuration.
+    // 3. What sort of deal the creator wants to make. For now, we'll just use the default deal configuration.
     const dealConfig = O.DefaultDealConfiguration;
     // Then you generate a proposal for the deal.
     const upload = {
@@ -112,32 +101,6 @@ export default class UploadPage extends React.Component<any> {
     return this.setState({
       uploads: [upload, ...this.state.uploads],
     });
-
-    // return this.setState({
-    //   files: [{ id: `file-${new Date().getTime()}`, data: file, estimation: null, price: null }, ...this.state.files],
-    // });
-
-
-    // note (al) : this hangs if the file is too small.
-    // const response = await R.post(
-    //   '/deals/estimate',
-    //   {
-    //     size: file.size,
-    //     replication: this.props.viewer.settings.replication,
-    //     durationBlks: this.props.viewer.settings.dealDuration,
-    //     verified: this.props.viewer.settings.verified,
-    //   },
-    //   this.props.api
-    // );
-
-    // const local = await fetch('/api/fil-usd');
-    // const { price } = await local.json();
-    //
-    // const estimate = response && response.totalAttoFil ? response.totalAttoFil : null;
-    //
-    // return this.setState({
-    //   files: [{ id: `file-${new Date().getTime()}`, data: file, estimation: estimate, price }, ...this.state.files],
-    // });
   };
 
   render() {
@@ -149,6 +112,15 @@ export default class UploadPage extends React.Component<any> {
           <SingleColumnLayout>
             <H2>Upload data</H2>
             <P style={{ marginTop: 16 }}>Add your public data to Estuary so anyone can retrieve it anytime.</P>
+            <P style={{ marginTop: 16 }}>On this page you can upload your files and submit a storage deals to the Ethereum network.</P>
+            <P style={{ marginTop: 16 }}>By default your deals will use the following configuration:</P>
+            <P style={{ marginTop: 16 }}>Storage Duration: {O.DefaultDealConfiguration.deal_length_in_blocks} Ethereum Blocks (~1 Year)</P>
+            <P style={{ marginTop: 16 }}>Storage Price: {O.DefaultDealConfiguration.bounty_per_tib}
+              {O.DefaultDealConfiguration.token_denomination} per TiB
+            </P>
+            <P style={{ marginTop: 16 }}>Storage Collateral: {O.DefaultDealConfiguration.collateral_per_tib}
+              {O.DefaultDealConfiguration.token_denomination} per TiB
+            </P>
             <UploadZone onFile={this._handleFile} onFlush={this._handleFlush} host={this.props.api} />
 
             {this.state.uploads.length ? (
@@ -156,12 +128,15 @@ export default class UploadPage extends React.Component<any> {
                 <H3 style={{ marginTop: 64 }}>
                   Queued {U.pluralize('file', this.state.uploads.length)} {`(${this.state.uploads.length})`}
                 </H3>
-                <P style={{ marginTop: 16 }}>Our Estuary node is ready to accept your data, click upload all to upload everything or click upload to upload individual files.</P>
+                <P style={{ marginTop: 16 }}>Our Estuary node is ready to accept your data.</P>
+                <P style={{ marginTop: 16 }}>Start adding your files to the queue; once you're ready, first upload your file to staging, and then submit an Ethereum deal for your file!</P>
 
                 <div className={styles.actions}>
-                  <Button style={{ marginRight: 24, marginBottom: 24 }} onClick={this._handleUpload}>
-                    Upload all
-                  </Button>
+                  {/*Note/TODO (al): it's annoying to have to sign a bunch of transactions at once*/}
+                  {/*          users should just upload one file at a time until we figure this out*/}
+                  {/*<Button style={{ marginRight: 24, marginBottom: 24 }} onClick={this._handleUpload}>*/}
+                  {/*  Upload all*/}
+                  {/*</Button>*/}
 
                   <Button
                     style={{
@@ -176,13 +151,13 @@ export default class UploadPage extends React.Component<any> {
                 </div>
 
                 <UploadList
-                    ref={this.list} // Bind the list to the component so we can upload all at once.
+                    ref={this.list}
                     uploads={this.state.uploads}
                     viewer={this.props.viewer}
                     onRemove={this._handleRemove}
                     host={this.props.api} />
               </React.Fragment>
-            ) : <P>No files queued.</P>}
+            ) : null}
           </SingleColumnLayout>
         </AuthenticatedLayout>
       </Page>
