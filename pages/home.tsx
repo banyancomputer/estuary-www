@@ -173,16 +173,20 @@ function HomePage(props: any) {
                     }
                     // Extract the deal ID from the file stats object
                     const dealId = Number(fileStats.dealId);
-                    let dealStatus = O.DealStatus.NON;
+                    let deal, dealStatus;
+                    // let dealStatus = O.DealStatus.NON;
                     if (dealId) {
                       // If there is a deal ID, retrieve the deal
-                      // TODO: Figure out what is exposed by the response that is returned by the API
-                      const deal: O.Deal = getDealByID(dealId);
-                      if (deal) {
-                        dealStatus = deal.status;
-                      } else {
-                        console.error("Couldn't find deal with ID", dealId);
-                      }
+                      // TODO: This should be an async function, but we can't make async calls here
+                      // Next steps would be implementing this as another component with its own state
+                      deal = O.getDealByID(dealId);
+                      // if (deal) {
+                      //   dealStatus = deal.status;
+                      // } else {
+                      //   console.error("Couldn't find deal with ID", dealId);
+                      //   dealStatus = O.DealStatus.NON;
+                      // }
+                      dealStatus = O.DealStatus.PROPOSED;
                     }
                     let dealStatusDescription = O.getDealStatusDescription(dealStatus);
 
@@ -201,7 +205,9 @@ function HomePage(props: any) {
                         {/*TODO (al): Right now the user shouldn't be able to access the deals page*/}
                         {/*They make deals upfront and can see a very simple status here*/}
                         {/*<td className={tstyles.td}>{<a href={`/deals/${String(data.id).padStart(9, '0')}`}>{offerDescription}</a>}</td>*/}
-                        <td className={tstyles.td}>{dealStatusDescription}</td>
+                        {/*TODO (al): We need to figure otu a way to pull dealStatus in the page initiation, or some other UI that allows us to pull it in a separate Component*/}
+                        {/*<td className={tstyles.td}>{dealStatusDescription}</td>*/}
+                        <td className={tstyles.td}>TODO</td>
                       </tr>
                     );
                   })

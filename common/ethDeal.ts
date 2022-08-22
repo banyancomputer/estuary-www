@@ -158,7 +158,7 @@ export function getDealStatusDescription(dealStatus: DealStatus): string {
 // Get Offer MetaData by its on-chain ID
 export async function getDealByID(id: number): Promise<Deal | undefined> {
     return {
-        status: DealStatus.NON,
+        status: DealStatus.PROPOSED,
     } as Deal;
 }
 
@@ -179,5 +179,12 @@ export async function getUsersOffers(): Promise<Deal[]> {
 
 // Submit a deal to chain. Returns the ID of the deal on chain.
 export async function proposeDeal(dealProposal: DealProposal): Promise<number> {
+    // Get our eth data from the session
+    const {address, provider} = Cookies.get(C.providerData);
+    const signer = provider.getSigner();
+    const txn = {
+        to: dealProposal.executor_address,
+        value: ''
+    }
     return 1;
 }
