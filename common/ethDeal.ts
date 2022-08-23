@@ -29,17 +29,6 @@ export type DealConfiguration = {
     // Everything else needs to be generated based on the file
 }
 
-/* TODO: Find out a better way to do this */
-export const eth_blocks_per_year = 365 * 6344;
-
-export const DefaultDealConfiguration: DealConfiguration = {
-    deal_length_in_blocks: eth_blocks_per_year,
-    proof_frequency: 1, // TODO: What is the unit for this?
-    bounty_per_tib: 10.00,
-    collateral_per_tib: .01,
-    token_denomination: 'USDC',
-}
-
 /**
  * This represents a deal proposal that is ready to be sent to the smart contract.
  */
@@ -130,28 +119,6 @@ export function isDealProposalFinalized(dealProposal: DealProposal): boolean
     return ret;
 }
 
-export function getDealStatusDescription(dealStatus: DealStatus): string {
-    switch (dealStatus) {
-        case DealStatus.NON:
-            return 'Non';
-        case DealStatus.PROPOSED:
-            return 'Proposed';
-        case DealStatus.ACCEPTED:
-            return 'Accepted';
-        case DealStatus.TIMEDOUT:
-            return 'Timed Out';
-        case DealStatus.CANCELLED:
-            return 'Cancelled';
-        case DealStatus.COMPLETE:
-            return 'Complete';
-        case DealStatus.FINALIZING:
-            return 'Finalizing';
-        case DealStatus.DONE:
-            return 'Done';
-        default:
-            return 'Unknown';
-    }
-}
 
 /* For querying and interacting with the blockchain */
 

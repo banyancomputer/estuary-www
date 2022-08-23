@@ -20,6 +20,7 @@ import Button from '@components/Button';
 
 import { H1, H2, H3, H4, P } from '@components/Typography';
 import {Cookies} from "js-cookie";
+import {DealMaker} from "@common/banyan";
 
 export async function getServerSideProps(context) {
   const viewer = await U.getViewerFromHeader(context.req.headers);
@@ -55,7 +56,15 @@ export async function getServerSideProps(context) {
 export default class UploadPage extends React.Component<any> {
   list = React.createRef<any>();
 
+
+  // Configure a Deal Maker instance to handle uploads.
+  dealMakerOptions = {
+    deal_configuration: C.DefaultDealConfiguration,
+  }
+
   state = {
+    // Initialize the Deal Maker instance in the state.
+    dealMaker: new DealMaker(this.dealMakerOptions),
     uploads: [],
   };
 
@@ -82,18 +91,10 @@ export default class UploadPage extends React.Component<any> {
       return;
     }
 
-    // In order to submit a deal to-chain: We need to know:
-    // 1. Who's making the deal
-    // const creatorAddress = Cookies.get(C.providerData).address;
-    // 2. Who to make a deal with
-    const executorAddress = O.defaultExecutorAddress
-    // 3. What sort of deal the creator wants to make. For now, we'll just use the default deal configuration.
-    const dealConfig = O.DefaultDealConfiguration;
-    // Then you generate a proposal for the deal.
     const upload = {
         // This generates a deal proposal for the file w/o an IPFS cid or Blake3 hash.
         id: `file-${new Date().getTime()}`,
-        dealProposal: O.generateDealProposal(executorAddress, dealConfig, file),
+        dealProposal: this.state.dealMaker.generateDealProposal(file),
         file,
     } as Upload;
 
@@ -102,6 +103,8 @@ export default class UploadPage extends React.Component<any> {
       uploads: [upload, ...this.state.uploads],
     });
   };
+
+  /* TODO: Implement Updating The deal configuration of the DealMaker.*/
 
   render() {
     const sidebarElement = <AuthenticatedSidebar active="UPLOAD" viewer={this.props.viewer} />;
@@ -114,12 +117,12 @@ export default class UploadPage extends React.Component<any> {
             <P style={{ marginTop: 16 }}>Add your public data to Estuary so anyone can retrieve it anytime.</P>
             <P style={{ marginTop: 16 }}>On this page you can upload your files and submit a storage deals to the Ethereum network.</P>
             <P style={{ marginTop: 16 }}>By default your deals will use the following configuration:</P>
-            <P style={{ marginTop: 16 }}>Storage Duration: {O.DefaultDealConfiguration.deal_length_in_blocks} Ethereum Blocks (~1 Year)</P>
-            <P style={{ marginTop: 16 }}>Storage Price: {O.DefaultDealConfiguration.bounty_per_tib}
-              {O.DefaultDealConfiguration.token_denomination} per TiB
+            <P style={{ marginTop: 16 }}>Storage Duration: {this.state.dealMaker.getDealConfiguration().deal_length_in_blocks} Ethereum Blocks (~1 Year)</P>
+            <P style={{ marginTop: 16 }}>Storage Price: {this.state.dealMaker.getDealConfiguration().bounty_per_tib}
+              {this.state.dealMaker.getDealConfiguration().erc20_token_denomination} per TiB
             </P>
-            <P style={{ marginTop: 16 }}>Storage Collateral: {O.DefaultDealConfiguration.collateral_per_tib}
-              {O.DefaultDealConfiguration.token_denomination} per TiB
+            <P style={{ marginTop: 16 }}>Storage Collateral: {this.state.dealMaker.getDealConfiguration().collateral_per_tib}
+              {this.state.dealMaker.getDealConfiguration().erc20_token_denomination} per TiB
             </P>
             <UploadZone onFile={this._handleFile} onFlush={this._handleFlush} host={this.props.api} />
 
@@ -152,6 +155,7 @@ export default class UploadPage extends React.Component<any> {
 
                 <UploadList
                     ref={this.list}
+                    dealMaker={this.state.dealMaker}
                     uploads={this.state.uploads}
                     viewer={this.props.viewer}
                     onRemove={this._handleRemove}

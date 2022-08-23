@@ -30,10 +30,9 @@ export default class UploadList extends React.Component<any> {
               host={this.props.host}
               // TODO: Make sure this populates items correctly.
               ref={(a) => (this.items[upload.id] = a)}
+              dealMaker={this.props.dealMaker}
               upload={upload}
               key={upload.id}
-              // file={upload.file}
-              // dealProposal={upload.dealProposal}
               viewer={this.props.viewer}
               onRemove={this.props.onRemove}
           />;

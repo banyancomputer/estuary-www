@@ -1,6 +1,7 @@
 // NOTE(jim): https://github.com/filecoin-project/go-data-transfer/blob/master/statuses.go
 // Definitions
-import * as O from "@common/ethDeal";
+import * as B from "./banyan";
+import {DealConfiguration} from "./banyan";
 
 export const statusColors = {
   0: `var(--status-0)`,
@@ -35,6 +36,19 @@ export type StatsResp = {
   cid: string;
   filename: string;
   dealId: string;
+}
+
+/* Deal Making Constants */
+export const default_executor_address = '0x0000000000000000000000000000000000000000';
+export const eth_blocks_per_year = 365 * 6344; // TODO: Find a better way to do this
+
+export const DefaultDealConfiguration: DealConfiguration = {
+  executor_address: default_executor_address,
+  deal_length_in_blocks: eth_blocks_per_year,
+  proof_frequency: 1, // TODO: What is the unit for this?
+  bounty_per_tib: 10.00,
+  collateral_per_tib: .01,
+  erc20_token_denomination: 'USDC',
 }
 
 // NOTE(jim)

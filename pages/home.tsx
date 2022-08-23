@@ -22,6 +22,7 @@ import AlertPanel from '@components/AlertPanel';
 import { H1, H2, H3, H4, P } from '@components/Typography';
 import Cookies from 'js-cookie';
 import {getDealByID} from "@common/ethDeal";
+import {getDealStatusDescription} from "@common/banyan";
 
 const INCREMENT = 1000;
 
@@ -188,7 +189,7 @@ function HomePage(props: any) {
                       // }
                       dealStatus = O.DealStatus.PROPOSED;
                     }
-                    let dealStatusDescription = O.getDealStatusDescription(dealStatus);
+                    let dealStatusDescription = getDealStatusDescription(dealStatus);
 
                     return (
                       <tr key={`${data.cid['/']}-${index}`} className={tstyles.tr}>
