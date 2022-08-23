@@ -129,7 +129,7 @@ export default class UploadItem extends React.Component<any> {
     };
 
     // Stage the file and extract relevant data from the response.
-    let {cid, blake3hash, estuaryId} = await
+    let {cid, blake3hash} = await
         dealMaker.stageFile(file, xhr)
             .then((resp) => {
               // On success, reset state and extract relevant data from the response.
@@ -170,96 +170,6 @@ export default class UploadItem extends React.Component<any> {
       throw new Error(error);
     });
   }
-
-  //   // A handler for catching upload success.
-  //   xhr.onloadend = (event: any) => {
-  //     if (!event.target || !event.target.response) {
-  //       return
-  //     }
-  //
-  //
-  //     if (event.target.status === 200) {
-  //       let contentAddResponse = {}
-  //       try {
-  //         // This returns a JSON object with the CID and the Blake3 hash of the file.
-  //         contentAddResponse = JSON.parse(event.target.response) as ContentAddResponse;
-  //       } catch (e) {
-  //         console.log(e);
-  //       }
-  //       this.setState({ ...this.state, contentAddResponse });
-  //       // Finalize the deal proposal based on the response from the staging server (CID, Blake3 hash, etc.)
-  //       this.finalizeDealProposal();
-  //     } else {
-  //       alert(`[${event.target.status}]Error during the upload: ${event.target.response}`);
-  //     }
-  //   };
-  //
-  //   // Declare a new FormData object to hold our Upload data.
-  //   const formData = new FormData();
-  //   // Add our data to the FormData object.
-  //   formData.append('data', file, file.filename);
-  //   // Extract our Auth Token from the cookies.
-  //   const token = Cookies.get(C.auth);
-  //
-  //   let targetURL = `${C.api.host}/content/add`;
-  //   if (this.props.viewer.settings.uploadEndpoints && this.props.viewer.settings.uploadEndpoints.length) {
-  //     targetURL = this.props.viewer.settings.uploadEndpoints[0];
-  //   }
-  //
-  //   /* TODO: Why isn't this just in a Post Request? */
-  //   xhr.open('POST', targetURL);
-  //   xhr.setRequestHeader('Authorization', `Bearer ${token}`);
-  //   xhr.send(formData);
-  //   this.setState({ ...this.state, loaded: 1 });
-  // };
-  //
-  // // This is called once the Upload is complete.
-  // // It finalizes the deal proposal.
-  // finalizeDealProposal = async () => {
-  //   console.log("Response: ", this.state.contentAddResponse);
-  //   // Extract the CID and the Blake3 hash of the file we uploaded.
-  //   let { cid, blake3hash, estuaryId } = this.state.contentAddResponse;
-  //   console.log("CID: ", cid);
-  //   console.log("Blake3: ", blake3hash);
-  //   let {id, dealProposal} = this.props.upload;
-  //   if (!cid || !blake3hash) {
-  //       alert('Error: CID or Blake3 hash not found!');
-  //       return;
-  //   }
-  //   // Finalize the DealProposal.
-  //   this.props.upload.dealProposal.cid = cid;
-  //   this.props.upload.dealProposal.blake3hash = blake3hash;
-  //   this.setState({ ...this.state, dealFinalized: true });
-  //   return;
-  // }
-  //
-  // // Finally, we post the DealProposal to-chain and update Estuary's state to track it.
-  // submitDealProposal = async () => {
-  //   // Extract the id and the DealProposal from the Upload.
-  //   let {id, dealProposal} = this.props.upload;
-  //   let { estuaryId } = this.state.contentAddResponse;
-  //   // Post the DealProposal to the Ethereum network.
-  //   let dealId = await O.proposeDeal(dealProposal);
-  //   if (!dealId) {
-  //     alert('Error: Could not post DealProposal to the Ethereum network.');
-  //     return;
-  //   }
-  //   console.log('dealProposal', dealProposal);
-  //   console.log('dealId', dealId);
-  //   // Record the DealID in the database.
-  //   await R.post('/content/update-deal-id', { estuaryId, dealId }).then((json) => {
-  //     // TODO: Figure out appropriate error handling for this.
-  //     if (!json.dealId) {
-  //       alert('Error: Could not record DealID in the database.');
-  //       return;
-  //     }
-  //     this.setState({ ...this.state, dealSubmitted: true });
-  //   }).catch((e) => {
-  //     alert('Error: Could not record DealID in the database.');
-  //     console.log(e);
-  //   });
-  // }
-
 
   render() {
     const isLoading = !this.state.fileStagedResponse && this.state.loaded > 0;
@@ -309,31 +219,19 @@ export default class UploadItem extends React.Component<any> {
                 </ActionRow>
               )}
             </div>
-            {/*Retrieval Link so they can verify*/}
+            {/*Retrieval Link so users can verify their data is pinned*/}
             <ActionRow>https://dweb.link/ipfs/{this.state.fileStagedResponse.cid}</ActionRow>
             {/*Pin Status*/}
             {maybePinStatusElement}
             {/*bounty Estimation*/}
-            {/*Note/TODO (al) We maybe don't need this if statement-- if we do error checking correctly the deal should always specify a bounty*/}
-            {this.state.dealProposal.bounty && this.state.dealProposal.collateral ? (
-              <div>
-                <ActionRow style={{ background: `var(--status-success-bright)` }}>
-                  Proposing to store {this.props.upload.file.name} for {this.state.dealProposal.bounty} {this.state.dealProposal.token_denomination}.
-                </ActionRow>
-                <ActionRow style={{ background: `var(--status-success-bright)` }}>
-                  Providers requested to put up Collateral of {this.state.dealProposal.collateral} {this.state.dealProposal.token_denomination}.
-                </ActionRow>
-              </div>
-            ) : (
-              <ActionRow>No bounty or collateral configured for {this.props.upload.file.name}!</ActionRow>
-            )}
-            {/*TODO: Figure out how all this is displayed to a user. Should they have a view into staging?*/}
-            {/*{this.props.file.estimation ? (*/}
-            {/*{ null ? (*/}
-            {/*  <ActionRow onClick={() => window.open('/deals')}>→ See all Filecoin deals.</ActionRow>*/}
-            {/*) : (*/}
-            {/*  <ActionRow onClick={() => window.open('/staging')}>→ View all staging bucket data.</ActionRow>*/}
-            {/*)}*/}
+            <div>
+              <ActionRow style={{ background: `var(--status-success-bright)` }}>
+                Proposing to store {this.props.upload.file.name} for {this.state.dealProposal.bounty} {this.state.dealProposal.token_denomination}.
+              </ActionRow>
+              <ActionRow style={{ background: `var(--status-success-bright)` }}>
+                Providers requested to put up Collateral of {this.state.dealProposal.collateral} {this.state.dealProposal.token_denomination}.
+              </ActionRow>
+            </div>
           </React.Fragment>
         ) : (
           <React.Fragment>
@@ -347,8 +245,6 @@ export default class UploadItem extends React.Component<any> {
                 <div className={styles.right}>
                   {this.state.fileStagedResponse ? null : (
                     <span className={styles.button} onClick={this.upload}>
-                      {/*Note/TODO (al): Huh? Why is this here?*/}
-                      {/*{this.props.file.estimination ? `Upload` : `Upload`}*/}
                         Upload
                     </span>
                   )}
@@ -360,24 +256,16 @@ export default class UploadItem extends React.Component<any> {
                 </div>
               ) : null}
             </div>
-            {/*TODO: Reimplement This Div with correct Estimation presentation based on the Eth deal*/}
             {!isLoading ? (
               <React.Fragment>
                 <ActionRow>{U.bytesToSize(this.props.upload.file.size)}</ActionRow>
                 { this.state.dealProposal.bounty ? (
                   <ActionRow>
-                    {/*Will cost {U.convertFIL(this.props.file.estimation)} FIL ⇄ {(Number(U.convertFIL(this.props.file.estimation)) * Number(this.props.file.bounty)).toFixed(2)} USD*/}
-                    {/*and this Estuary Node will pay.*/}
-                    Estimated cost: {this.state.dealProposal.bounty} {this.state.dealProposal.token_denomination}
+                    Estimated cost: {this.state.dealProposal.bounty} {this.state.dealProposal.erc20_token_denomination}
                   </ActionRow>
                 ) : (
                   <ActionRow>{this.props.upload.file.name}: no bounty estimation</ActionRow>
                 )}
-                {/*Don't support verified deals atm*/}
-                {/*{this.props.file.estimation && this.props.viewer.settings.verified ?*/}
-                {/*  <ActionRow>The Filecoin deal will be verified.</ActionRow>*/}
-                {/*  ) : null*/}
-                {/*}*/}
               </React.Fragment>
             ) : null}
             <ActionRow style={{ background: isLoading ? `#000` : null, color: isLoading ? `#fff` : null }}>Data will be sent to {targetURL}</ActionRow>

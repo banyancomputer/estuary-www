@@ -53,44 +53,12 @@ export class DealMaker {
 
     }
 
+    /**
+     * @description Return the current deal configuration.
+     */
     public getDealConfiguration(): DealConfiguration {
         return this.options.deal_configuration;
     }
-
-    /**
-     * @description Stage a File and Submit a deal to the Banyan network.
-     * @param {File} file - The file to upload.
-     * @param {XMLHttpRequest} xhr? - An optional XMLHttpRequest to use for uploading the file. See
-     *                                stageFile() for more details.
-     */
-    // public async submitDeal(file: File, xhr?: XMLHttpRequest): Promise<string> {
-    //     // Check if we have a valid API key.
-    //     const key = this.options.estuary_api_key;
-    //     if (!key) {
-    //         // TODO: Error handling for a missing API key that logs a User in.
-    //         throw new Error('Estuary API key is required.');
-    //     }
-    //     // Stage the file and extract relevant data from the response.
-    //     let {cid, blake3hash, estuaryId} = await
-    //         this.stageFile(file, xhr).catch((error) => {
-    //             throw new Error(error);
-    //         });
-    //     // Create the DealProposal.
-    //     let dealProposal = this.generateDealProposal(file, cid, blake3hash);
-    //     // Submit the DealProposal to chain
-    //     let dealId = await
-    //         this.submitDealProposal(dealProposal).catch((error) => {
-    //             throw new Error(error);
-    //         });
-    //     // Update the dealId of the file in Estuary.
-    //     dealId = await this.updateDealId(estuaryId, dealId).catch((error) => {
-    //         throw new Error(error);
-    //     });
-    //     // Return a void
-    //     return Promise.resolve(dealId);
-    // }
-
-    // Helpers and Requests //
 
     /**
      * @description Initialize a DealProposal to submit to our Smart Contract.
@@ -187,7 +155,7 @@ export class DealMaker {
      * @param {string} dealId - The ID of the DealProposal.
      */
     public async updateDealId(estuaryId: string, dealId: string): Promise<string> {
-        await R.post('/content/update-deal-id', { estuaryId, dealId }).then((json) => {
+        return await R.post('/content/update-deal-id', { estuaryId, dealId }).then((json) => {
             // TODO: Figure out appropriate error handling for this.
             if (!json.dealId) {
                 // alert('Error: Could not record DealID in the database.');
@@ -279,10 +247,8 @@ export function getDealStatusDescription(dealStatus: DealStatus): string {
     }
 }
 
-interface FileStagingResponse {
+export interface FileStagingResponse {
     cid: string;
     blake3hash: string; // TODO: add blake3 to the response
-    // retrievalUrl: string;
     estuaryId: string; // I feel like this is a bad name. TODO: rename
-    // providers: string[]; // note/TODO (al): Not really sure what this is for...
 }
