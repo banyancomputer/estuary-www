@@ -4,7 +4,6 @@ import tstyles from '@pages/table.module.scss';
 import * as React from 'react';
 import * as U from '@common/utilities';
 import * as R from '@common/requests';
-import * as O from '@common/ethDeal';
 import * as C from '@common/constants';
 
 import ProgressCard from '@components/ProgressCard';
@@ -21,7 +20,6 @@ import AlertPanel from '@components/AlertPanel';
 
 import { H1, H2, H3, H4, P } from '@components/Typography';
 import Cookies from 'js-cookie';
-import {getDealByID} from "@common/ethDeal";
 import {getDealStatusDescription} from "@common/banyan";
 
 const INCREMENT = 1000;
@@ -175,19 +173,18 @@ function HomePage(props: any) {
                     // Extract the deal ID from the file stats object
                     const dealId = Number(fileStats.dealId);
                     let deal, dealStatus;
-                    // let dealStatus = O.DealStatus.NON;
                     if (dealId) {
                       // If there is a deal ID, retrieve the deal
                       // TODO: This should be an async function, but we can't make async calls here
                       // Next steps would be implementing this as another component with its own state
-                      deal = O.getDealByID(dealId);
+                      // deal = S.getDealByID(dealId);
                       // if (deal) {
                       //   dealStatus = deal.status;
                       // } else {
                       //   console.error("Couldn't find deal with ID", dealId);
                       //   dealStatus = O.DealStatus.NON;
                       // }
-                      dealStatus = O.DealStatus.PROPOSED;
+                      dealStatus = S.DealStatus.PROPOSED;
                     }
                     let dealStatusDescription = getDealStatusDescription(dealStatus);
 

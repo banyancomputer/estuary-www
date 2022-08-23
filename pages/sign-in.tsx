@@ -89,6 +89,7 @@ async function handleSiweLogin(state: any, host, connector: S.EthProviders, _ext
         return;
     }
   let { provider, address, ens } = providerData;
+    console.log("Provider Data", providerData);
   let authKey: string | {error: any} = await S.estuaryAuth(provider, address, ens).catch(err => {
     return null;
   });
@@ -102,7 +103,7 @@ async function handleSiweLogin(state: any, host, connector: S.EthProviders, _ext
     sameSite: 'lax',
   });
   // Set a cookie with the provider
-  Cookies.set(C.providerData, providerData, {
+  Cookies.set(C.providerData, JSON.stringify(providerData), {
     expires: 1,
   });
   // Delete the cookie for the nonce

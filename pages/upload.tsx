@@ -3,8 +3,6 @@ import styles from '@pages/app.module.scss';
 import * as React from 'react';
 import * as U from '@common/utilities';
 import * as C from '@common/constants';
-import * as R from '@common/requests';
-import * as O from '@common/ethDeal';
 import { Upload } from "@components/UploadItem";
 
 import * as ipfs from 'ipfs-core';

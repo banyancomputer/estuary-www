@@ -2,8 +2,22 @@ import * as C from './constants';
 import { ProviderData } from "@common/crypto";
 import * as R from "@common/requests";
 import Cookies from 'js-cookie';
+import {ethers} from "ethers";
 
 /* Exports for Interacting with Banyan Infrastructure */
+
+// TODO: Make this Configurable
+const BanyanContractAddress  = "0x0000000000000000000000000000000000000001";
+// TODO: This is what's on the Banyan Contract, but this isn't the right declaration
+const BanyanABI = [
+    "function startOffer(" +
+    "   address token," +
+    "   uint256 creatorAmount," +
+    "   address  executerAddress, " +
+    "   uint256 executorAmount, " +
+    "   uint256 cid" +
+    ") public payable returns (uint256)",
+    ];
 
 /**
  * File-Agnostic Deal Configuration options
@@ -22,7 +36,7 @@ export type DealConfiguration = {
 
 export interface DealMakerOptions {
     // Required
-    provider?: ProviderData; // The provider to use for interacting with the blockchain
+    providerData?: ProviderData; // The provider to use for interacting with the blockchain
     deal_configuration: DealConfiguration; // The configuration of the deal
     estuary_api_key?: string // The API key for the Estuary API;
     // Optional
@@ -43,8 +57,9 @@ export class DealMaker {
             this.options.estuary_host = C.api.host;
         }
         // Check if the provider is defined.
-        if (!this.options.provider) {
-            this.options.provider = Cookies.get(C.providerData);
+        if (!this.options.providerData) {
+            this.options.providerData = JSON.parse(Cookies.get(C.providerData));
+            console.log("Provider Data: ", this.options.providerData);
         }
         // Check if the API key is defined.
         if (!this.options.estuary_api_key) {
@@ -143,10 +158,30 @@ export class DealMaker {
         if (!dealProposal.file_cid || !dealProposal.file_blake3) {
             throw new Error('Deal proposal is not valid.');
         }
-        // TODO: Implement this.
-        return new Promise((resolve, reject) => {
-            resolve("0x0");
-        });
+        console.log("Submitting new deal Proposal: ", dealProposal);
+        // Get the Provider from the options.
+        let { provider } = this.options.providerData;
+        console.log("Provider: ", provider);
+        // Get a Signer from the Provider.
+        let signer = provider.getSigner();
+        // Initialize a Contract instance to interact with the Smart Contract.
+        const contract = new ethers.Contract(
+            BanyanContractAddress, BanyanABI, provider
+        ).connect(signer)
+        // Submit the deal proposal to the Banyan network as an offer
+        let tx = await contract.startOffer(
+            dealProposal.executor_address,
+            dealProposal.deal_length_in_blocks,
+            dealProposal.proof_frequency,
+            dealProposal.bounty,
+            dealProposal.collateral,
+            dealProposal.erc20_token_denomination,
+            dealProposal.file_size,
+            dealProposal.file_cid,
+            dealProposal.file_blake3,
+        );
+        // Return the ID of the DealProposal.
+        return tx.hash;
     }
 
     /**
