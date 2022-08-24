@@ -5,6 +5,7 @@ import * as React from 'react';
 import * as U from '@common/utilities';
 import * as R from '@common/requests';
 import * as C from '@common/constants';
+import * as B from '@common/banyan';
 
 import ProgressCard from '@components/ProgressCard';
 import Navigation from '@components/Navigation';
@@ -70,7 +71,7 @@ function HomePage(props: any) {
   React.useEffect(() => {
     const run = async () => {
       // Get the users Ethereum address
-      const userAddress = Cookies.get(C.providerData).address;
+      const userAddress = Cookies.get(C.userWallet).address;
 
       // The Stat Reps for all files the user has uploaded to Estuary
       const files = await R.get(`/content/stats?offset=${state.offset}&limit=${state.limit}`, props.api);
@@ -184,7 +185,7 @@ function HomePage(props: any) {
                       //   console.error("Couldn't find deal with ID", dealId);
                       //   dealStatus = O.DealStatus.NON;
                       // }
-                      dealStatus = S.DealStatus.PROPOSED;
+                      dealStatus = B.DealStatus.PROPOSED;
                     }
                     let dealStatusDescription = getDealStatusDescription(dealStatus);
 

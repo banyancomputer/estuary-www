@@ -22,6 +22,7 @@ import Input from '@components/Input';
 import Button from '@components/Button';
 
 import { H1, H2, H3, H4, P } from '@components/Typography';
+import {UserWalletIdentifier} from "@common/siwe";
 
 export async function getServerSideProps(context) {
 
@@ -78,10 +79,10 @@ async function handleTokenAuthenticate(state: any, host) {
  * @param _extension - A reference to a browser extension referencing a wallet address. In this case, MetaMask.
  * @returns {Promise<err>} - Returns a promise that resolves to an error if there is one.
  */
-async function handleSiweLogin(state: any, host, connector: S.EthProviders, _extension: any = undefined) {
+async function handleSiweLogin(state: any, host) {//connector: S.EthProviders, _extension: any = undefined) {
   console.log("Handling Siwe Login");
   // Note (al): figure out why TS is complaining about this
-  let providerData = await S.getProviderData(connector, _extension).catch(err => {
+  let providerData = await S.getProviderData().catch(err => {
     return null;
   });
     if (!providerData) {
@@ -89,7 +90,7 @@ async function handleSiweLogin(state: any, host, connector: S.EthProviders, _ext
         return;
     }
   let { provider, address, ens } = providerData;
-    console.log("Provider Data", providerData);
+    // console.log("Provider Data", providerData);
   let authKey: string | {error: any} = await S.estuaryAuth(provider, address, ens).catch(err => {
     return null;
   });
@@ -103,9 +104,13 @@ async function handleSiweLogin(state: any, host, connector: S.EthProviders, _ext
     sameSite: 'lax',
   });
   // Set a cookie with the provider
-  Cookies.set(C.providerData, JSON.stringify(providerData), {
-    expires: 1,
-  });
+  // TODO: Replace this with something that actually caches the provider
+  // Cookies.set(C.providerData, providerData, {
+  //   expires: 1,
+  // });
+  Cookies.set(C.userWallet, {address, ens} as UserWalletIdentifier, {
+      expires: 1,
+    });
   // Delete the cookie for the nonce
   Cookies.remove(C.siweNonce);
   // Navigate to the home page
@@ -116,11 +121,7 @@ async function handleSiweLogin(state: any, host, connector: S.EthProviders, _ext
 function SignInPage(props: any) {
 
 
-  const [state, setState] = React.useState({ loading: false, authLoading: false, fissionLoading: false, username: '', password: '', key: '' });
-
-  const authorise = null;
-  const authScenario = null;
-  const signIn = null;
+  const [state, setState] = React.useState({ loading: false, authLoading: false, fissionLoading: false, key: '' });
 
   /* TODO: Figure out UI layout */
   return (
@@ -132,38 +133,12 @@ function SignInPage(props: any) {
         <P style={{ marginTop: 16 }}>You can use your Crypto Wallet to sing in!</P>
 
         <div className={styles.actions}>
-            {/*/!*TODO: Figure out how to control whether this is rendered *!/*/}
-            {/*/!*TODO: NextJs Can only access `window.ethereum` in the browser*!/*/}
-            <Button
-              style={{ width: '100%' }}
-              loading={state.loading ? state.loading : undefined}
-              onClick={async () => {
-                // If we metamask is available, we can use it to sign in.
-                if (window.ethereum) {
-                  setState({...state, loading: true});
-                  // You need to pass `window.ethereum` to the sign in function,
-                  // If the provider is MetaMask
-                  let err = await handleSiweLogin(
-                      state, props.api, S.EthProviders.METAMASK, window.ethereum
-                  );
-                  if (err && err.error) {
-                    alert(err.error);
-                  }
-                  setState({...state, loading: false});
-                } else {
-                  alert('Please install MetaMask to sign in.');
-                }
-              }}
-            >
-              Sign in with MetaMask
-            </Button>
-
           <Button
               style={{ width: '100%', marginTop: 8 }}
               onClick={async () => {
                 setState({ ...state, loading: true });
                 let err = await handleSiweLogin(
-                    state, props.api, S.EthProviders.WALLET_CONNECT
+                    state, props.api, //S.EthProviders.WALLET_CONNECT
                 );
                 if (err) {
                   alert(err.error);
@@ -171,7 +146,7 @@ function SignInPage(props: any) {
                 }
               }}
           >
-            Sign in with WalletConnect
+            Sign in with with your Wallet
           </Button>
 
           {/* TODO: Point to resource for creating a wallet*/}

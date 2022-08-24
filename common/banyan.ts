@@ -1,8 +1,11 @@
 import * as C from './constants';
 import { ProviderData } from "@common/crypto";
 import * as R from "@common/requests";
+import { getProviderData} from "@common/siwe";
 import Cookies from 'js-cookie';
 import {ethers} from "ethers";
+import Web3Modal from "web3modal";
+import {web3ModalConfig} from "@common/siwe";
 
 /* Exports for Interacting with Banyan Infrastructure */
 
@@ -36,7 +39,8 @@ export type DealConfiguration = {
 
 export interface DealMakerOptions {
     // Required
-    providerData?: ProviderData; // The provider to use for interacting with the blockchain
+    // TODO: pass a cached provider as an argument to this
+    // providerData?: ProviderData; // The provider to use for interacting with the blockchain
     deal_configuration: DealConfiguration; // The configuration of the deal
     estuary_api_key?: string // The API key for the Estuary API;
     // Optional
@@ -56,11 +60,11 @@ export class DealMaker {
         if (!this.options.estuary_host) {
             this.options.estuary_host = C.api.host;
         }
-        // Check if the provider is defined.
-        if (!this.options.providerData) {
-            this.options.providerData = JSON.parse(Cookies.get(C.providerData));
-            console.log("Provider Data: ", this.options.providerData);
-        }
+        // // Check if the provider is defined.
+        // if (!this.options.providerData) {
+        //     this.options.providerData = JSON.parse(Cookies.get(C.providerData));
+        //     console.log("Provider Data: ", this.options.providerData);
+        // }
         // Check if the API key is defined.
         if (!this.options.estuary_api_key) {
             this.options.estuary_api_key = Cookies.get(C.auth);
@@ -159,11 +163,14 @@ export class DealMaker {
             throw new Error('Deal proposal is not valid.');
         }
         console.log("Submitting new deal Proposal: ", dealProposal);
+        // TODO: Read this from some sort of cache with Web3Modal
         // Get the Provider from the options.
-        let { provider } = this.options.providerData;
-        console.log("Provider: ", provider);
-        // Get a Signer from the Provider.
-        let signer = provider.getSigner();
+
+        const web3Modal = new Web3Modal(web3ModalConfig);
+        const instance = await web3Modal.connect();
+        const provider = new ethers.providers.Web3Provider(instance);
+        const signer = provider.getSigner();
+
         // Initialize a Contract instance to interact with the Smart Contract.
         const contract = new ethers.Contract(
             BanyanContractAddress, BanyanABI, provider

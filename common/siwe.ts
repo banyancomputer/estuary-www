@@ -9,6 +9,9 @@ import WalletConnect from '@walletconnect/web3-provider';
 import { ethers } from 'ethers';
 import { SiweMessage } from "siwe";
 import * as C from '@common/constants';
+// import Web3 from "web3";
+import Web3Modal from "web3modal";
+import WalletConnectProvider from "@walletconnect/web3-provider";
 
 const EstuaryHost = C.api.host;
 
@@ -18,6 +21,23 @@ export const enum EthProviders {
     WALLET_CONNECT = 'walletconnect',
 }
 
+/**
+ * Our provider options for the wallets we support.
+ */
+export const web3ModalConfig = {
+    network: "mainnet", // optional TODO: Make this configurable
+    cacheProvider: true, // optional
+    providerOptions: {
+        walletconnect: {
+            package: WalletConnect, // required
+            options: {
+                // TODO - replace with your own Infura ID
+                infuraId: '8fcacee838e04f31b6ec145eb98879c8',
+            }
+        }
+    }
+};
+
 /*
  * Type to hold the current provider
  * This can be used to identify the user and sign transactions
@@ -25,7 +45,15 @@ export const enum EthProviders {
 export type ProviderData = {
     provider: ethers.providers.Web3Provider,
     address: string,
-    ens: string
+    ens: string,
+}
+
+/*
+ * A type for holding the data needed to identify the user
+ */
+export type UserWalletIdentifier = {
+    address: string,
+    ens: string,
 }
 
 /**
@@ -33,34 +61,17 @@ export type ProviderData = {
  * @returns {providerData} - The provider data.
  */
 export async function getProviderData(
-    connector: EthProviders, // The connector to use
-    _extension: any = undefined // The extension to use (if any)
+    // connector: EthProviders, // The connector to use
+    // _extension: any = undefined // The extension to use (if any)
 ): Promise<ProviderData> {
-    /**
-     * Connect to a user's wallet and start an etherjs provider.
-     */
-    let provider: ethers.providers.Web3Provider;
-
-    if (connector === 'metamask') {
-        await _extension.request({
-            method: 'eth_requestAccounts',
-        });
-        provider = new ethers.providers.Web3Provider(_extension);
-    } else {
-        let walletconnect: WalletConnect = new WalletConnect({
-            // TODO - replace with your own Infura ID
-            infuraId: '8fcacee838e04f31b6ec145eb98879c8',
-        });
-        walletconnect.enable();
-        provider = new ethers.providers.Web3Provider(walletconnect);
-    }
-
+    const web3Modal = new Web3Modal(web3ModalConfig);
+    const instance = await web3Modal.connect();
+    const provider = new ethers.providers.Web3Provider(instance);
     // Get the user's address
     const [address] = await provider.listAccounts();
     if (!address) {
         throw new Error('No address found');
     }
-
     /**
      * Try to resolve address ENS and updates the title accordingly.
      */

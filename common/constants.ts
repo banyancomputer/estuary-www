@@ -28,7 +28,7 @@ export const auth = 'ESTUARY_TOKEN';
 // SIWE Session Cookie key
 export const siweNonce = 'SIWE_NONCE';
 // Cookie for holding what provider the user is using
-export const providerData = 'PROVIDER_DATA';
+export const userWallet = 'USER_WALLET';
 
 // A statsResp Type to handle responses from /contents/stats
 export type StatsResp = {
