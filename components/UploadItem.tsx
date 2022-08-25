@@ -4,6 +4,9 @@ import * as React from 'react';
 import * as U from '@common/utilities';
 import * as C from '@common/constants';
 import * as R from '@common/requests';
+import * as B from '@common/banyan';
+
+import { Subject } from 'rxjs';
 
 import Cookies from 'js-cookie';
 import ProgressBlock from '@components/ProgressBlock';
@@ -39,8 +42,9 @@ export class PinStatusElement extends React.Component<any> {
     if (this.state.pinned) {
       return (
         <React.Fragment>
-          <ActionRow>This CID is pinned.</ActionRow>
-          <ActionRow>Delegate {this.state.delegates[0]}</ActionRow>
+          <ActionRow>Your file is pinned on our staging node.</ActionRow>
+          <ActionRow> CID: {this.props.cid}</ActionRow>
+          {/*<ActionRow>Delegate {this.state.delegates[0]}</ActionRow>*/}
         </React.Fragment>
       );
     }
@@ -53,46 +57,49 @@ export class PinStatusElement extends React.Component<any> {
   }
 }
 
+// Interface that describes the contents of a single Upload
+export interface Upload {
+  id: string;
+  dealProposal: B.DealProposal;
+  file: File;
+}
+
+// Class that describes how a single Upload is handled
 export default class UploadItem extends React.Component<any> {
   state = {
     loaded: 0,
-    total: this.props.file.data.size,
+    total: this.props.upload.file.size,
     secondsRemaining: 0,
     secondsElapsed: 0,
     bytesPerSecond: 0,
-    staging: !this.props.file.estimation,
-    final: null,
+    // staging: !this.props.file.estimation,
+    fileStagedResponse: null,
+    dealProposal: this.props.upload.dealProposal,
+    dealSubmitted: false,
   };
 
   upload = async () => {
+    let {id, file} = this.props.upload;
+    let dealMaker = this.props.dealMaker;
+    console.log("Handling upload", id);
+
     if (this.state.loaded > 0) {
-      console.log('already attempted', this.props.file.id);
+      console.log('already attempted', id);
       return;
     }
 
-    if (!this.props.file) {
+    if (!file) {
       alert('Broken file constructor.');
       return;
     }
 
-    if (!this.props.file.data) {
-      alert('Broken data file constructor.');
-      return;
-    }
-
-    const formData = new FormData();
-
-    const { data } = this.props.file;
-
-    formData.append('data', data, data.filename);
-    // TODO(jim):
-    // We really don't need to be making this requests from the client
-    const token = Cookies.get(C.auth);
-
+    // Declare a custom Request object to handle the upload.
+    // We use the Request object to track the upload's progress.
     let xhr = new XMLHttpRequest();
     let startTime = new Date().getTime();
     let secondsElapsed = 0;
 
+    // A handler for tracking the progress of the Upload.
     xhr.upload.onprogress = async (event) => {
       if (!startTime) {
         startTime = new Date().getTime();
@@ -112,96 +119,140 @@ export default class UploadItem extends React.Component<any> {
       });
     };
 
+    // A handler for catching upload errors.
     xhr.upload.onerror = async () => {
-      alert(`Error during the upload: ${xhr.status}`);
+      alert(`Error uploading file to staging: ${xhr.status}`);
       startTime = null;
       secondsElapsed = 0;
     };
 
-    xhr.onloadend = (event: any) => {
-      if (!event.target || !event.target.response) {
-        return
-      }
-      
-      startTime = null;
-      secondsElapsed = 0;
-      if (event.target.status === 200) {
-        let json = {}
-        try {
-          json = JSON.parse(event.target.response);
-        } catch (e) {
-          console.log(e);
-        }
-        this.setState({ ...this.state, final: json });
-      } else {
-        alert(`[${event.target.status}]Error during the upload: ${event.target.response}`);
-      }
-    };
+    // Stage the file and extract relevant data from the response.
+    let {cid, blake3hash} = await
+      dealMaker.stageFile(file, xhr)
+        .then((resp) => {
+          // On success, reset state and extract relevant data from the response.
+          startTime = null;
+          secondsElapsed = 0;
+          let dealProposal = dealMaker.generateDealProposal(file);
+          this.setState({
+            ...this.state,
+            loaded: 1, // Note (al): Not sure if this is right.
+            fileStagedResponse: resp,
+            dealProposal,
+          });
+          return resp;
+        }).catch((error) => {
+        throw new Error(error);
+      });
+    // Create the DealProposal.
+    let dealProposal = dealMaker.generateDealProposal(file, cid, blake3hash);
+    this.setState({...this.state, dealProposal});
+  }
 
-    let targetURL = `${C.api.host}/content/add`;
-    if (this.props.viewer.settings.uploadEndpoints && this.props.viewer.settings.uploadEndpoints.length) {
-      targetURL = this.props.viewer.settings.uploadEndpoints[0];
-    }
-
-    xhr.open('POST', targetURL);
-    xhr.setRequestHeader('Authorization', `Bearer ${token}`);
-    xhr.send(formData);
-    this.setState({ ...this.state, loaded: 1 });
-  };
+  submitDeal = async () => {
+    let {estuaryId} = this.state.fileStagedResponse;
+    let {dealProposal} = this.state;
+    let dealMaker = this.props.dealMaker;
+    // Submit the DealProposal to chain
+    let dealId = await
+      dealMaker.submitDealProposal(dealProposal).then(() => {
+        this.setState({
+          ...this.state,
+          dealSubmitted: true,
+        });
+      }).catch((error) => {
+        alert("Could not submit deal proposal: " + error);
+        return;
+      });
+    // Update the dealId of the file in Estuary.
+    dealId = await dealMaker.updateDealId(estuaryId, dealId).catch((error) => {
+      // throw new Error(error);
+      alert("Could not update dealId in Estuary: " + error +
+        "- EstuaryId: " + estuaryId + " - DealId: " + dealId
+      );
+      return;
+    });
+  }
 
   render() {
-    const isLoading = !this.state.final && this.state.loaded > 0;
+    const isLoading = !this.state.fileStagedResponse && this.state.loaded > 0;
 
     let targetURL = `${C.api.host}/content/add`;
     if (this.props.viewer.settings.uploadEndpoints && this.props.viewer.settings.uploadEndpoints.length) {
       targetURL = this.props.viewer.settings.uploadEndpoints[0];
     }
 
+    // note (al): I don't think we need this anymore, but I'm leaving it in for now.
     // TODO(jim)
     // States getting messy here, need to refactor this component.
     // Not sure if this will be an ongoing problem of tracking pin status.
     let maybePinStatusElement = null;
-    if (this.state.final) {
-      maybePinStatusElement = <PinStatusElement id={this.state.final.estuaryId} host={this.props.host} />;
+    if (this.state.fileStagedResponse) {
+      maybePinStatusElement = <PinStatusElement
+        id={this.state.fileStagedResponse.estuaryId}
+        cid={this.state.fileStagedResponse.cid}
+        host={this.props.host}
+      />;
     }
 
     return (
       <section className={styles.item}>
-        {this.state.final ? (
+        {/*Have we received a content response?*/}
+        {this.state.fileStagedResponse ? (
           <React.Fragment>
-            <ActionRow isHeading style={{ fontSize: '0.9rem', fontWeight: 500, background: `var(--status-success-bright)` }}>
-              {this.props.file.data.name} uploaded to our node!
-            </ActionRow>
-            <ActionRow>https://dweb.link/ipfs/{this.state.final.cid}</ActionRow>
+            {/*Message that the upload is complete*/}
+            <div className={styles.actions}>
+              {!this.state.dealSubmitted ? (
+                <div className={styles.left}>
+                  <ActionRow isHeading style={{ fontSize: '0.9rem', fontWeight: 500, background: `var(--status-success-bright)` }}>
+                    {this.props.upload.file.name} staged to our node and ready for hosting!
+                  </ActionRow>
+                  {this.state.dealProposal ? (
+                    // TODO: Figure out how to make this inline with the above ActionRow.
+                    <div className={styles.right}>
+                       <span className={styles.button} onClick={this.submitDeal}>
+                         Submit Deal
+                       </span>
+                    </div>
+                  ) : null }
+                </div>
+              ) : (
+                <ActionRow isHeading style={{ fontSize: '0.9rem', fontWeight: 500, background: `var(--status-success-bright)` }}>
+                  {this.props.upload.file.name} staged to our node and deal submitted to Ethereum!
+                </ActionRow>
+              )}
+            </div>
+            {/*Retrieval Link so users can verify their data is pinned*/}
+            <ActionRow>https://dweb.link/ipfs/{this.state.fileStagedResponse.cid}</ActionRow>
+            {/*Pin Status*/}
             {maybePinStatusElement}
-            {this.props.file.estimation ? (
-              <ActionRow style={{ background: `var(--status-success-bright)` }}>Filecoin Deals are being mmade for {this.props.file.data.name}.</ActionRow>
-            ) : (
-              <ActionRow>{this.props.file.data.name} was added to a staging bucket for a batched Filecoin deal.</ActionRow>
-            )}
-            {this.props.file.estimation ? (
-              <ActionRow onClick={() => window.open('/deals')}>→ See all Filecoin deals.</ActionRow>
-            ) : (
-              <ActionRow onClick={() => window.open('/staging')}>→ View all staging bucket data.</ActionRow>
-            )}
+            {/*bounty Estimation*/}
+            <div>
+              <ActionRow style={{ background: `var(--status-success-bright)` }}>
+                Proposing to store {this.props.upload.file.name} for {this.state.dealProposal.bounty} {this.state.dealProposal.token_denomination}.
+              </ActionRow>
+              <ActionRow style={{ background: `var(--status-success-bright)` }}>
+                Providers requested to put up Collateral of {this.state.dealProposal.collateral} {this.state.dealProposal.token_denomination}.
+              </ActionRow>
+            </div>
           </React.Fragment>
         ) : (
           <React.Fragment>
             <div className={styles.actions}>
               <div className={styles.left}>
                 <ActionRow isHeading style={{ fontSize: '0.9rem', fontWeight: 500, background: isLoading ? `#000` : null, color: isLoading ? `#fff` : null }}>
-                  {this.props.file.data.name} {isLoading ? <LoaderSpinner style={{ marginLeft: 8, height: 10, width: 10 }} /> : null}
+                  {this.props.upload.file.name} {isLoading ? <LoaderSpinner style={{ marginLeft: 8, height: 10, width: 10 }} /> : null}
                 </ActionRow>
               </div>
               {!isLoading ? (
                 <div className={styles.right}>
-                  {this.state.final ? null : (
+                  {this.state.fileStagedResponse ? null : (
                     <span className={styles.button} onClick={this.upload}>
-                      {this.props.file.estimination ? `Upload` : `Upload`}
+                        Upload
                     </span>
                   )}
-                  {!this.state.final ? (
-                    <span className={styles.button} onClick={() => this.props.onRemove(this.props.file.id)}>
+                  {!this.state.fileStagedResponse ? (
+                    <span className={styles.button} onClick={() => this.props.onRemove(this.props.upload.id)}>
                       Remove
                     </span>
                   ) : null}
@@ -210,23 +261,20 @@ export default class UploadItem extends React.Component<any> {
             </div>
             {!isLoading ? (
               <React.Fragment>
-                <ActionRow>{U.bytesToSize(this.props.file.data.size)}</ActionRow>
-                {this.props.file.estimation ? (
+                <ActionRow>{U.bytesToSize(this.props.upload.file.size)}</ActionRow>
+                { this.state.dealProposal.bounty ? (
                   <ActionRow>
-                    Will cost {U.convertFIL(this.props.file.estimation)} FIL ⇄ {(Number(U.convertFIL(this.props.file.estimation)) * Number(this.props.file.price)).toFixed(2)} USD
-                    and this Estuary Node will pay.
+                    Estimated cost: {this.state.dealProposal.bounty} {this.state.dealProposal.erc20_token_denomination}
                   </ActionRow>
                 ) : (
-                  <ActionRow>{this.props.file.data.name} will be added to staging bucket for a batched deal later.</ActionRow>
+                  <ActionRow>{this.props.upload.file.name}: no bounty estimation</ActionRow>
                 )}
-
-                {this.props.file.estimation && this.props.viewer.settings.verified ? <ActionRow>The Filecoin deal will be verified.</ActionRow> : null}
               </React.Fragment>
             ) : null}
             <ActionRow style={{ background: isLoading ? `#000` : null, color: isLoading ? `#fff` : null }}>Data will be sent to {targetURL}</ActionRow>
           </React.Fragment>
         )}
-
+        {/*Progress tracker while we're uploading files to staging*/}
         {isLoading ? (
           <ProgressBlock secondsRemaining={this.state.secondsRemaining} bytesPerSecond={this.state.bytesPerSecond} loaded={this.state.loaded} total={this.state.total} />
         ) : null}

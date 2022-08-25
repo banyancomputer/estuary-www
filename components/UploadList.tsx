@@ -25,8 +25,17 @@ export default class UploadList extends React.Component<any> {
   render() {
     return (
       <section className={styles.layout}>
-        {this.props.files.map((file) => {
-          return <UploadItem host={this.props.host} ref={(a) => (this.items[file.id] = a)} key={file.id} file={file} viewer={this.props.viewer} onRemove={this.props.onRemove} />;
+        {this.props.uploads.map((upload) => {
+          return <UploadItem
+              host={this.props.host}
+              // TODO: Make sure this populates items correctly.
+              ref={(a) => (this.items[upload.id] = a)}
+              dealMaker={this.props.dealMaker}
+              upload={upload}
+              key={upload.id}
+              viewer={this.props.viewer}
+              onRemove={this.props.onRemove}
+          />;
         })}
       </section>
     );

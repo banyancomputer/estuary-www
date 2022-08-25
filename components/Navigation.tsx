@@ -32,10 +32,12 @@ const Navigation = (props: any) => {
             </a>
           ) : null}
 
-          <a href="/verify-cid" className={styles.webItem}>
-            Verify
-          </a>
+          {/*NOTE (al): Removing the ability to verify for now*/}
+          {/*<a href="/verify-cid" className={styles.webItem}>*/}
+          {/*  Verify*/}
+          {/*</a>*/}
 
+          {/*TODO: Make this point at our Documentation*/}
           <a href="https://docs.estuary.tech" className={styles.webItem}>
             Documentation
           </a>

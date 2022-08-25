@@ -1,6 +1,41 @@
-// NOTE(jim): https://github.com/filecoin-project/go-data-transfer/blob/master/statuses.go
-// Definitions
+import {DealConfiguration} from "./banyan";
+import WalletConnect from "@walletconnect/web3-provider";
 
+/*
+ * Application Defining Constants:
+ * */
+
+/* Endpoints and Contract Addresses */
+export const default_executor_address = '0x0000000000000000000000000000000000000000';
+export const eth_blocks_per_year = 365 * 6344; // TODO: Find a better way to do this
+export const USDC_ADDRESS = '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174';
+
+/* Constant and default Structs and Classes */
+
+/*
+ * Our Default Deal Configuration
+ */
+export const DefaultDealConfiguration: DealConfiguration = {
+  executor_address: default_executor_address,
+  deal_length_in_blocks: eth_blocks_per_year,
+  proof_frequency_in_blocks: 1, // TODO: What is the unit for this?
+  bounty_per_tib: 10.00,
+  collateral_per_tib: .01,
+  erc20_token_denomination: USDC_ADDRESS,
+}
+
+/* Cookie Related Constants */
+
+// Auth Cookie key
+export const auth = 'ESTUARY_TOKEN';
+// SIWE Session Cookie key
+export const siweNonce = 'SIWE_NONCE';
+// Cookie for holding what provider the user is using
+export const userWallet = 'USER_WALLET';
+
+/* Misc Constants */
+
+// Application Status Colors
 export const statusColors = {
   0: `var(--status-0)`,
   1: `var(--status-1)`,
@@ -21,26 +56,7 @@ export const statusColors = {
   16: `var(--status-16)`,
 };
 
-// NOTE(jim)
-// As discussed with Why, this salt is okay to expose to the client
-// Normally we would never do this but we want the password to be hashed from the wire.
-// And not server to server
-export const salt = '$2a$08$r31MZDLMLVcHAUfrePT2H.';
-
-// NOTE(jim)
-// Auth Cookie key
-export const auth = 'ESTUARY_TOKEN';
-// SIWE Session Cookie key
-export const siwe = 'SIWE_SESSION';
-
-// NOTE(jim)
-// Valid username regex
-export const regex = {
-  // NOTE(jim): only characters and digits.
-  username: /^[a-zA-Z0-9]{1,32}$/,
-  // NOTE(jim): eight characters, at least one letter and one number.
-  password: /^(?=.*[A-Za-z])(?=.*\d).{8,}$/,
-};
+/* Helpers */
 
 function getAPIHost(): string {
   if (process.env.ESTUARY_API) {

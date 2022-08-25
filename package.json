@@ -16,19 +16,26 @@
   "dependencies": {
     "@babel/runtime": "^7.16.7",
     "@glif/filecoin-number": "^1.1.0-beta.17",
+    "@napi-rs/blake-hash": "^1.3.1",
     "@types/node": "^17.0.13",
     "@walletconnect/web3-provider": "^1.8.0",
     "bcryptjs": "^2.4.3",
+    "blake3": "^2.1.7",
     "cors": "^2.8.5",
     "d3": "^5.16.0",
     "ethers": "^5.5.1",
+    "ipfs-core": "^0.15.4",
     "js-cookie": "^3.0.1",
     "next": "^12.1.4",
+    "next-images": "^1.8.4",
+    "next-transpile-modules": "^9.0.0",
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
+    "rxjs": "^7.5.6",
     "sass": "1.50.0",
     "siwe": "^1.1.6",
-    "uuid": "^8.3.2"
+    "uuid": "^8.3.2",
+    "web3modal": "^1.9.8"
   },
   "devDependencies": {
     "@types/react": "^17.0.37",

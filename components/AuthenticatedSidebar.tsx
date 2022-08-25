@@ -23,32 +23,43 @@ function AuthenticatedLayout(props: any) {
       <a className={styles.item} href="/upload" style={props.active === 'UPLOAD' ? { color: `var(--main-primary)` } : null}>
         Upload
       </a>
-      <a className={styles.item} href="/upload-cid" style={props.active === 'UPLOAD_CID' ? { color: `var(--main-primary)` } : null}>
-        Pin CID
-      </a>
+      {/*  TODO: Re-incorporate Uplaod by CID -- it's a cool feature*/}
+      {/*<a className={styles.item} href="/upload-cid" style={props.active === 'UPLOAD_CID' ? { color: `var(--main-primary)` } : null}>*/}
+      {/*  Pin CID*/}
+      {/*</a>*/}
 
       <div className={styles.title}>Developers</div>
-      <a className={styles.item} href="/staging" style={props.active === 'STAGING' ? { color: `var(--main-primary)` } : null}>
-        Staging
-      </a>
-      <a className={styles.item} href="/deals" style={props.active === 'DEALS' ? { color: `var(--main-primary)` } : null}>
-        Deals
-      </a>
-      <a className={styles.item} href="/deals/debug" style={props.active === 'DEALS_DEBUG' ? { color: `var(--main-primary)` } : null}>
-        Debug
-      </a>
+      {/*
+        TODO: note (al): I am removing these routes from the Estuary-WWW in order to simplify our MVP but they should
+        be re-incorporated when we work our how staging is supposed to work.
+      */}
+      {/*<a className={styles.item} href="/staging" style={props.active === 'STAGING' ? { color: `var(--main-primary)` } : null}>*/}
+      {/*  Staging*/}
+      {/*</a>*/}
+
+      {/*  TOOD: atm deal status isn't displayed in depth to the user but this should maybe change */}
+      {/*<a className={styles.item} href="/deals" style={props.active === 'DEALS' ? { color: `var(--main-primary)` } : null}>*/}
+      {/*  Deals*/}
+      {/*</a>*/}
+      {/*<a className={styles.item} href="/deals/debug" style={props.active === 'DEALS_DEBUG' ? { color: `var(--main-primary)` } : null}>*/}
+      {/*  Debug*/}
+      {/*</a>*/}
       <a className={styles.item} href="/api-admin" style={props.active === 'API' ? { color: `var(--main-primary)` } : null}>
         API keys
       </a>
 
       <div className={styles.title}>Settings</div>
-      <a className={styles.item} href="/your-miners">
-        Your miners
-      </a>
 
-      <a className={styles.item} href="/settings">
-        Account
-      </a>
+      {/*  note (al): We don't support miners configuring accounts */}
+      {/*<a className={styles.item} href="/your-miners">*/}
+      {/*  Your miners*/}
+      {/*</a>*/}
+
+      {/*  note (al) Users can't actually change any settings as of yet */}
+      {/*<a className={styles.item} href="/settings">*/}
+      {/*  Account*/}
+      {/*</a>*/}
+
       {/* TODO: note (al) This should point to our own landing page that we'll deploy under the same domain */}
       <a className={styles.item} href="https://docs.estuary.tech/feedback" target="_blank">
         Feedback
@@ -61,6 +72,9 @@ function AuthenticatedLayout(props: any) {
           if (err) {
             console.log("Could not delete Resource: ", err);
           }
+          // Remove provider data from local storage
+          Cookies.remove(C.providerData)
+          // Remove the auth cookie from the browser
           Cookies.remove(C.auth);
           window.location.href = '/';
         }}

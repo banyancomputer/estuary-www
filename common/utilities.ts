@@ -1,3 +1,8 @@
+/*
+ * A hodgepodge of functions that were included in the original code
+ * TODO: We use some of these to make the code more readable/workable, but this should be organized better
+ */
+
 import { FilecoinNumber, Converter } from '@glif/filecoin-number';
 
 import * as Cookies from '@vendor/cookie-cutter';
