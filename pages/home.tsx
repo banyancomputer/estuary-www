@@ -18,10 +18,13 @@ import PageHeader from '@components/PageHeader';
 import Button from '@components/Button';
 import ActionRow from '@components/ActionRow';
 import AlertPanel from '@components/AlertPanel';
+import AsyncChild from 'react-async-child';
 
 import { H1, H2, H3, H4, P } from '@components/Typography';
 import Cookies from 'js-cookie';
-import {getDealStatusDescription} from "@common/banyan";
+import {getDeal} from "@common/banyan";
+import LoaderSpinner from "@components/LoaderSpinner";
+import Link from "next/link";
 
 const INCREMENT = 1000;
 
@@ -56,14 +59,84 @@ const getNext = async (state, setState, host) => {
     ...state,
     offset,
     limit,
-    files: [...state.files, ...next],
+    fileStats: [...state.files, ...next],
   });
 };
 
+// A statsResp Type to handle responses from /contents/stats
+export type FileStat = {
+  id: string;
+  cid: string;
+  filename: string;
+  dealId: string;
+}
+
+export class FileItem extends React.Component<any> {
+  state = { dealStatus: null };
+
+  componentDidMount() {
+    const getDealStatus = () => {
+      window.setTimeout(async () => {
+        const dealStatus = await B.getDealStatus(this.props.fs.dealId);
+        if (dealStatus) {
+          this.setState({ dealStatus });
+          this.forceUpdate();
+          return;
+        }
+        getDealStatus();
+      }, 5000);
+    };
+    getDealStatus();
+  }
+
+  render() {
+    let fileStats = this.props.fs; //as FileStat;
+    let index = this.props.index;
+
+    const fileURL = `https://dweb.link/ipfs/${fileStats.cid['/']}`;
+    let name = '...';
+    if (fileStats && fileStats.filename) {
+      name = fileStats.filename;
+    }
+    if (name === 'aggregate') {
+      name = '/';
+    }
+
+    return (
+      <tr key={`${fileStats.cid['/']}-${index}`} className={tstyles.tr}>
+        {/*Local Estuary ID*/}
+        <td className={tstyles.td} style={{ fontSize: 12, fontFamily: 'Mono', opacity: 0.4 }}>
+          {String(fileStats.id).padStart(9, '0')}
+        </td>
+        {/*Filename (if any)*/}
+        <td className={tstyles.td}>
+          {name}
+        </td>
+        {/*Retrieval Link*/}
+        <td className={tstyles.tdcta}>
+          <a href={fileURL} target="_blank" className={tstyles.cta}>
+            {fileURL}
+          </a>
+        </td>
+        {/*Note (al): I don't see aggregation as a part of the struct returned by the /content/stats endpoint on Estuary*/}
+        {/*For now I'm gonna leave this line here but we should figure out what sort of aggregation we should support views into*/}
+        {/*<td className={tstyles.td}>{fileStats.aggregatedFiles + 1}</td>*/}
+        {/*Deal Status*/}
+        <td className={tstyles.td}>
+          {this.state.dealStatus ?
+            <a href={`deals/${this.props.fs.dealId}`}>{this.state.dealStatus}</a> :
+            <LoaderSpinner/>
+          }
+        </td>
+      </tr>
+    );
+  }
+}
+
 function HomePage(props: any) {
   const [state, setState] = React.useState({
-    files: null,
-    stats: null,
+    fileStats: null,
+    userStats: null,
     offset: 0,
     limit: INCREMENT,
   });
@@ -71,15 +144,14 @@ function HomePage(props: any) {
   React.useEffect(() => {
     const run = async () => {
       // Get the users Ethereum address
-      const userAddress = Cookies.get(C.userWallet).address;
-
+      // const userAddress = Cookies.get(C.userWallet).address;
       // The Stat Reps for all files the user has uploaded to Estuary
-      const files = await R.get(`/content/stats?offset=${state.offset}&limit=${state.limit}`, props.api);
+      const fileStats = await R.get(`/content/stats?offset=${state.offset}&limit=${state.limit}`, props.api);
       // A users aggregated stats
-      const stats = await R.get('/user/stats', props.api);
+      const userStats = await R.get('/user/stats', props.api);
 
-      if (files && !files.error) {
-        setState({ ...state, files, stats });
+      if (fileStats && !fileStats.error) {
+        setState({ ...state, fileStats, userStats });
       }
     };
 
@@ -99,7 +171,7 @@ function HomePage(props: any) {
           of Filecoin to be deployed by miners.
         </AlertPanel> */}
 
-        {state.files && !state.files.length ? (
+        {state.fileStats && !state.fileStats.length ? (
           <PageHeader>
             <H2>Upload public data</H2>
             <P style={{ marginTop: 16 }}>
@@ -115,26 +187,23 @@ function HomePage(props: any) {
         ) : (
           <PageHeader>
             <H2>Files</H2>
-            <P style={{ marginTop: 16 }}>
-              Files that you upload to Banyan are listed here. <br />
-            </P>
           </PageHeader>
         )}
 
-        {state.stats ? (
+        {state.userStats ? (
           <div className={styles.group}>
             <table className={tstyles.table}>
               <tbody className={tstyles.tbody}>
-                <tr className={tstyles.tr}>
-                  <th className={tstyles.th}>Total size bytes</th>
-                  <th className={tstyles.th}>Total size</th>
-                  <th className={tstyles.th}>Total number of pins</th>
-                </tr>
-                <tr className={tstyles.tr}>
-                  <td className={tstyles.td}>{U.formatNumber(state.stats.totalSize)}</td>
-                  <td className={tstyles.td}>{U.bytesToSize(state.stats.totalSize)}</td>
-                  <td className={tstyles.td}>{U.formatNumber(state.stats.numPins)}</td>
-                </tr>
+              <tr className={tstyles.tr}>
+                <th className={tstyles.th}>Total size bytes</th>
+                <th className={tstyles.th}>Total size</th>
+                <th className={tstyles.th}>Total number of pins</th>
+              </tr>
+              <tr className={tstyles.tr}>
+                <td className={tstyles.td}>{U.formatNumber(state.userStats.totalSize)}</td>
+                <td className={tstyles.td}>{U.bytesToSize(state.userStats.totalSize)}</td>
+                <td className={tstyles.td}>{U.formatNumber(state.userStats.numPins)}</td>
+              </tr>
               </tbody>
             </table>
           </div>
@@ -143,77 +212,32 @@ function HomePage(props: any) {
         <div className={styles.group}>
           <table className={tstyles.table}>
             <tbody className={tstyles.tbody}>
-              <tr className={tstyles.tr}>
-                <th className={tstyles.th} style={{ width: '96px' }}>
-                  Local ID
-                </th>
-                <th className={tstyles.th} style={{ width: '30%' }}>
-                  Name
-                </th>
-                <th className={tstyles.th}>Retrieval link</th>
-                <th className={tstyles.th} style={{ width: '120px' }}>
-                  Files
-                </th>
-                <th className={tstyles.th} style={{ width: '120px' }}>
-                  Deal Status
-                </th>
-              </tr>
-              {state.files && state.files.length
-                ? state.files.map((data, index) => {
-
-                    // Bind the data to a StatsResp object
-                    let fileStats = data as C.StatsResp;
-                    const fileURL = `https://dweb.link/ipfs/${data.cid['/']}`;
-                    let name = '...';
-                    if (fileStats && fileStats.filename) {
-                      name = data.filename;
-                    }
-                    if (name === 'aggregate') {
-                      name = '/';
-                    }
-                    // Extract the deal ID from the file stats object
-                    const dealId = Number(fileStats.dealId);
-                    let deal, dealStatus;
-                    if (dealId) {
-                      // If there is a deal ID, retrieve the deal
-                      // TODO: This should be an async function, but we can't make async calls here
-                      // Next steps would be implementing this as another component with its own state
-                      // deal = S.getDealByID(dealId);
-                      // if (deal) {
-                      //   dealStatus = deal.status;
-                      // } else {
-                      //   console.error("Couldn't find deal with ID", dealId);
-                      //   dealStatus = O.DealStatus.NON;
-                      // }
-                      dealStatus = B.DealStatus.PROPOSED;
-                    }
-                    let dealStatusDescription = getDealStatusDescription(dealStatus);
-
-                    return (
-                      <tr key={`${data.cid['/']}-${index}`} className={tstyles.tr}>
-                        <td className={tstyles.td} style={{ fontSize: 12, fontFamily: 'Mono', opacity: 0.4 }}>
-                          {String(data.id).padStart(9, '0')}
-                        </td>
-                        <td className={tstyles.td}>{name}</td>
-                        <td className={tstyles.tdcta}>
-                          <a href={fileURL} target="_blank" className={tstyles.cta}>
-                            {fileURL}
-                          </a>
-                        </td>
-                        <td className={tstyles.td}>{data.aggregatedFiles + 1}</td>
-                        {/*TODO (al): Right now the user shouldn't be able to access the deals page*/}
-                        {/*They make deals upfront and can see a very simple status here*/}
-                        {/*<td className={tstyles.td}>{<a href={`/deals/${String(data.id).padStart(9, '0')}`}>{offerDescription}</a>}</td>*/}
-                        {/*TODO (al): We need to figure otu a way to pull dealStatus in the page initiation, or some other UI that allows us to pull it in a separate Component*/}
-                        {/*<td className={tstyles.td}>{dealStatusDescription}</td>*/}
-                        <td className={tstyles.td}>TODO</td>
-                      </tr>
-                    );
-                  })
-                : null}
+            <tr className={tstyles.tr}>
+              <th className={tstyles.th} style={{ width: '96px' }}>
+                Local ID
+              </th>
+              <th className={tstyles.th} style={{ width: '30%' }}>
+                Name
+              </th>
+              <th className={tstyles.th}>Retrieval link</th>
+              {/*Note (al): We don't support aggregation, yet*/}
+              {/*<th className={tstyles.th} style={{ width: '120px' }}>*/}
+              {/*  Files*/}
+              {/*</th>*/}
+              <th className={tstyles.th} style={{ width: '120px' }}>
+                Deal Status
+              </th>
+            </tr>
+            {state.fileStats && state.fileStats.length
+              ? state.fileStats.map((data, index) => {
+                return (
+                  <FileItem key={index} fs={data}/>
+                );
+              })
+              : null}
             </tbody>
           </table>
-          {state.files && state.offset + state.limit === state.files.length ? (
+          {state.fileStats && state.offset + state.limit === state.fileStats.length ? (
             <ActionRow style={{ paddingLeft: 16, paddingRight: 16 }} onClick={() => getNext(state, setState, props.api)}>
               ➝ Next {INCREMENT}
             </ActionRow>

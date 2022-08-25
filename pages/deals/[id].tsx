@@ -4,12 +4,14 @@ import tstyles from '@pages/table.module.scss';
 import * as React from 'react';
 import * as U from '@common/utilities';
 import * as R from '@common/requests';
-import * as O from '@common/ethDeal';
+import * as B from '@common/banyan';
 
 import Navigation from '@components/Navigation';
 import Page from '@components/Page';
 import AuthenticatedLayout from '@components/AuthenticatedLayout';
 import AuthenticatedSidebar from '@components/AuthenticatedSidebar';
+import LoaderSpinner from "@components/LoaderSpinner";
+import {P} from "@components/Typography";
 
 export async function getServerSideProps(context) {
   const viewer = await U.getViewerFromHeader(context.req.headers);
@@ -30,40 +32,38 @@ export async function getServerSideProps(context) {
 
 function DealPage(props: any) {
   // const [state, setState] = React.useState({ deal: null, transfer: null, onChainState: null });
-  const [state, setState] = React.useState({offer: null});
+  const [state, setState] = React.useState({deal: null});
   React.useEffect(() => {
     const run = async () => {
-      // TODO: pull this from Estuary once off-chain tracking is implemented
-      // const response = await R.get(`/deals/status/${props.id}`, props.api);
-      console.log(props.id);
-
-      const offer = await O.getOffer(props.id);
-
-      setState({offer});
+      let deal = await B.getDeal(props.id);
+      setState({deal});
     };
 
     run();
   }, []);
-
-  // let fileURL;
-  // if (state.transfer) {
-  //   fileURL = `https://dweb.link/ipfs/${state.transfer.baseCid}`;
-  // }
 
   const sidebarElement = <AuthenticatedSidebar viewer={props.viewer} active="DEAL_BY_ID" />;
 
   return (
     <Page title={`Estuary: Deal: ${props.id}`} description={`Deal status and transfer information`} url={`${props.hostname}/deals/${props.id}`}>
       <AuthenticatedLayout navigation={<Navigation isAuthenticated isRenderingSidebar={!!sidebarElement} active="DEAL_BY_ID" />} sidebar={sidebarElement}>
-        {state.offer ?
-            null : (<h1>Deal {props.id}</h1>)
+        <h1>Deal {props.id}</h1>
+        {state.deal ?
+          <div>
+            <P style={{ marginTop: 16 }}>Deal Start Block: {state.deal.deal_start_block}</P>
+            <P style={{ marginTop: 16 }}>Deal Length in Blocks: {state.deal.deal_length_in_blocks}</P>
+            <P style={{ marginTop: 16 }}>Proof Frequency in Blocks: {state.deal.proof_frequency_in_blocks}</P>
+            <P style={{ marginTop: 16 }}>Deal Bounty: {state.deal.bounty}</P>
+            <P style={{ marginTop: 16 }}>Deal Collateral: {state.deal.collateral}</P>
+            <P style={{ marginTop: 16 }}>Token Address: {state.deal.erc20_token_denomination}</P>
+            <P style={{ marginTop: 16 }}>File Size: {state.deal.file_size}</P>
+            <P style={{ marginTop: 16 }}>File CID: {state.deal.file_cid}</P>
+            <P style={{ marginTop: 16 }}>File Blake3 Hash: {state.deal.file_blake3}</P>
+            <P style={{ marginTop: 16 }}>Deal Status: {state.deal.status}</P>
+          </div>
+          :
+          <LoaderSpinner />
         }
-
-
-
-
-
-
         {/*{state.deal ? (*/}
         {/*  <React.Fragment>*/}
         {/*    <table className={tstyles.table}>*/}

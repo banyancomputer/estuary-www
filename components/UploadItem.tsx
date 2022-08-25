@@ -128,22 +128,22 @@ export default class UploadItem extends React.Component<any> {
 
     // Stage the file and extract relevant data from the response.
     let {cid, blake3hash} = await
-        dealMaker.stageFile(file, xhr)
-            .then((resp) => {
-              // On success, reset state and extract relevant data from the response.
-              startTime = null;
-              secondsElapsed = 0;
-              let dealProposal = dealMaker.generateDealProposal(file);
-              this.setState({
-                ...this.state,
-                loaded: 1, // Note (al): Not sure if this is right.
-                fileStagedResponse: resp,
-                dealProposal,
-              });
-              return resp;
-            }).catch((error) => {
-          throw new Error(error);
-        });
+      dealMaker.stageFile(file, xhr)
+        .then((resp) => {
+          // On success, reset state and extract relevant data from the response.
+          startTime = null;
+          secondsElapsed = 0;
+          let dealProposal = dealMaker.generateDealProposal(file);
+          this.setState({
+            ...this.state,
+            loaded: 1, // Note (al): Not sure if this is right.
+            fileStagedResponse: resp,
+            dealProposal,
+          });
+          return resp;
+        }).catch((error) => {
+        throw new Error(error);
+      });
     // Create the DealProposal.
     let dealProposal = dealMaker.generateDealProposal(file, cid, blake3hash);
     this.setState({...this.state, dealProposal});
@@ -155,17 +155,22 @@ export default class UploadItem extends React.Component<any> {
     let dealMaker = this.props.dealMaker;
     // Submit the DealProposal to chain
     let dealId = await
-        dealMaker.submitDealProposal(dealProposal).then(() => {
-          this.setState({
-            ...this.state,
-            dealSubmitted: true,
-          });
-        }).catch((error) => {
-          throw new Error(error);
+      dealMaker.submitDealProposal(dealProposal).then(() => {
+        this.setState({
+          ...this.state,
+          dealSubmitted: true,
         });
+      }).catch((error) => {
+        alert("Could not submit deal proposal: " + error);
+        return;
+      });
     // Update the dealId of the file in Estuary.
     dealId = await dealMaker.updateDealId(estuaryId, dealId).catch((error) => {
-      throw new Error(error);
+      // throw new Error(error);
+      alert("Could not update dealId in Estuary: " + error +
+        "- EstuaryId: " + estuaryId + " - DealId: " + dealId
+      );
+      return;
     });
   }
 
@@ -184,9 +189,9 @@ export default class UploadItem extends React.Component<any> {
     let maybePinStatusElement = null;
     if (this.state.fileStagedResponse) {
       maybePinStatusElement = <PinStatusElement
-          id={this.state.fileStagedResponse.estuaryId}
-          cid={this.state.fileStagedResponse.cid}
-          host={this.props.host}
+        id={this.state.fileStagedResponse.estuaryId}
+        cid={this.state.fileStagedResponse.cid}
+        host={this.props.host}
       />;
     }
 

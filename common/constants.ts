@@ -1,8 +1,41 @@
-// NOTE(jim): https://github.com/filecoin-project/go-data-transfer/blob/master/statuses.go
-// Definitions
-import * as B from "./banyan";
 import {DealConfiguration} from "./banyan";
+import WalletConnect from "@walletconnect/web3-provider";
 
+/*
+ * Application Defining Constants:
+ * */
+
+/* Endpoints and Contract Addresses */
+export const default_executor_address = '0x0000000000000000000000000000000000000000';
+export const eth_blocks_per_year = 365 * 6344; // TODO: Find a better way to do this
+export const USDC_ADDRESS = '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174';
+
+/* Constant and default Structs and Classes */
+
+/*
+ * Our Default Deal Configuration
+ */
+export const DefaultDealConfiguration: DealConfiguration = {
+  executor_address: default_executor_address,
+  deal_length_in_blocks: eth_blocks_per_year,
+  proof_frequency_in_blocks: 1, // TODO: What is the unit for this?
+  bounty_per_tib: 10.00,
+  collateral_per_tib: .01,
+  erc20_token_denomination: USDC_ADDRESS,
+}
+
+/* Cookie Related Constants */
+
+// Auth Cookie key
+export const auth = 'ESTUARY_TOKEN';
+// SIWE Session Cookie key
+export const siweNonce = 'SIWE_NONCE';
+// Cookie for holding what provider the user is using
+export const userWallet = 'USER_WALLET';
+
+/* Misc Constants */
+
+// Application Status Colors
 export const statusColors = {
   0: `var(--status-0)`,
   1: `var(--status-1)`,
@@ -23,42 +56,7 @@ export const statusColors = {
   16: `var(--status-16)`,
 };
 
-// Auth Cookie key
-export const auth = 'ESTUARY_TOKEN';
-// SIWE Session Cookie key
-export const siweNonce = 'SIWE_NONCE';
-// Cookie for holding what provider the user is using
-export const userWallet = 'USER_WALLET';
-
-// A statsResp Type to handle responses from /contents/stats
-export type StatsResp = {
-  id: string;
-  cid: string;
-  filename: string;
-  dealId: string;
-}
-
-/* Deal Making Constants */
-export const default_executor_address = '0x0000000000000000000000000000000000000000';
-export const eth_blocks_per_year = 365 * 6344; // TODO: Find a better way to do this
-
-export const DefaultDealConfiguration: DealConfiguration = {
-  executor_address: default_executor_address,
-  deal_length_in_blocks: eth_blocks_per_year,
-  proof_frequency: 1, // TODO: What is the unit for this?
-  bounty_per_tib: 10.00,
-  collateral_per_tib: .01,
-  erc20_token_denomination: 'USDC',
-}
-
-// NOTE(jim)
-// Valid username regex
-export const regex = {
-  // NOTE(jim): only characters and digits.
-  username: /^[a-zA-Z0-9]{1,32}$/,
-  // NOTE(jim): eight characters, at least one letter and one number.
-  password: /^(?=.*[A-Za-z])(?=.*\d).{8,}$/,
-};
+/* Helpers */
 
 function getAPIHost(): string {
   if (process.env.ESTUARY_API) {

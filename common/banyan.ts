@@ -1,7 +1,5 @@
 import * as C from './constants';
-import { ProviderData } from "@common/crypto";
 import * as R from "@common/requests";
-import { getProviderData} from "@common/siwe";
 import Cookies from 'js-cookie';
 import {ethers} from "ethers";
 import Web3Modal from "web3modal";
@@ -9,18 +7,31 @@ import {web3ModalConfig} from "@common/siwe";
 
 /* Exports for Interacting with Banyan Infrastructure */
 
-// TODO: Make this Configurable
-const BanyanContractAddress  = "0x0000000000000000000000000000000000000001";
-// TODO: This is what's on the Banyan Contract, but this isn't the right declaration
-const BanyanABI = [
-    "function startOffer(" +
-    "   address token," +
-    "   uint256 creatorAmount," +
-    "   address  executerAddress, " +
-    "   uint256 executorAmount, " +
-    "   uint256 cid" +
-    ") public payable returns (uint256)",
-    ];
+// TODO: Did you know that Env variables in Next.js are extremely annoying?
+// TODO: This is a temporary fix until we can figure out how to use them properly.
+const BanyanContractAddress  = '0x899647E1A672ecC9d352027e372A453467313889' || '0x0000000000000000000000000000000000000000';
+
+// TODO: This needs to be refactored to use the Banyan Contract correctly
+const BanyanContractABI = [
+    // Create a new Banyan Deal
+    "function createOffer(" +
+    "   address _executor_address, " +
+    "   uint256 _deal_length_in_blocks, " +
+    "   uint256 _proof_frequency_in_blocks, " +
+    "   uint256 _bounty, " +
+    "   uint256 _collateral, " +
+    "   string _erc20_token_denomination," +
+    "   uint256 _file_size, " +
+    "   string calldata _file_cid, " +
+    "   string calldata _file_blake3, " +
+    ") public view returns (uint256)",
+
+    // // Check the status of a Banyan Deal
+    "function getDealStatus(uint256 _deal_id) public view returns (uint256)",
+
+    // Get the details of a Banyan Deal
+    "function getDeal(uint256 _deal_id) public view returns (uint256)", // TODO: Figure out the correct return type for this
+];
 
 /**
  * File-Agnostic Deal Configuration options
@@ -30,7 +41,7 @@ export type DealConfiguration = {
     executor_address: string; // The address of the Executor to propose the deal to
     // Deal timing information
     deal_length_in_blocks: number; // The number of blocks the deal will last for
-    proof_frequency: number; // The number of blocks between each proof
+    proof_frequency_in_blocks: number; // The number of blocks between each proof
     // The amount of tokens that the deal will be worth
     bounty_per_tib: number; // The price of the deal in the Token, in $ per Byte
     collateral_per_tib: number; // The amount of collateral in Ether, in $ per Byte
@@ -39,11 +50,9 @@ export type DealConfiguration = {
 
 export interface DealMakerOptions {
     // Required
-    // TODO: pass a cached provider as an argument to this
-    // providerData?: ProviderData; // The provider to use for interacting with the blockchain
     deal_configuration: DealConfiguration; // The configuration of the deal
-    estuary_api_key?: string // The API key for the Estuary API;
     // Optional
+    estuary_api_key?: string // The API key for the Estuary API;
     estuary_host?: string; // The host of the Estuary node
 }
 
@@ -60,16 +69,10 @@ export class DealMaker {
         if (!this.options.estuary_host) {
             this.options.estuary_host = C.api.host;
         }
-        // // Check if the provider is defined.
-        // if (!this.options.providerData) {
-        //     this.options.providerData = JSON.parse(Cookies.get(C.providerData));
-        //     console.log("Provider Data: ", this.options.providerData);
-        // }
         // Check if the API key is defined.
         if (!this.options.estuary_api_key) {
             this.options.estuary_api_key = Cookies.get(C.auth);
         }
-
     }
 
     /**
@@ -91,7 +94,7 @@ export class DealMaker {
         return {
             executor_address: this.options.deal_configuration.executor_address,
             deal_length_in_blocks: this.options.deal_configuration.deal_length_in_blocks,
-            proof_frequency: this.options.deal_configuration.proof_frequency,
+            proof_frequency_in_blocks: this.options.deal_configuration.proof_frequency_in_blocks,
             bounty: this.options.deal_configuration.bounty_per_tib * num_tib,
             collateral: this.options.deal_configuration.collateral_per_tib * num_tib,
             erc20_token_denomination: this.options.deal_configuration.erc20_token_denomination,
@@ -112,8 +115,8 @@ export class DealMaker {
      * @returns {Promise<{cid: string, blake3: string}>} - The CID and Blake3 hash of the file.
      */
     public async stageFile(
-        file: any, // The file to upload.
-        _xhr?: XMLHttpRequest, // The (optional) XMLHttpRequest object to use for the upload.
+      file: any, // The file to upload.
+      _xhr?: XMLHttpRequest, // The (optional) XMLHttpRequest object to use for the upload.
     ): Promise<FileStagingResponse> {
         if (!file) {
             throw new Error('File is required.');
@@ -159,6 +162,7 @@ export class DealMaker {
     public async submitDealProposal(dealProposal: DealProposal): Promise<string> {
         // Check if the deal proposal is valid.
         // TODO: Make this more robust.
+
         if (!dealProposal.file_cid || !dealProposal.file_blake3) {
             throw new Error('Deal proposal is not valid.');
         }
@@ -171,24 +175,34 @@ export class DealMaker {
         const provider = new ethers.providers.Web3Provider(instance);
         const signer = provider.getSigner();
 
-        // Initialize a Contract instance to interact with the Smart Contract.
+        /** BUG: The following will throw an error saying the contract reverted.
+         *  I am not sure why this is happening. This needs to be explored and fixed in the next overhaul of the frontend.
+         */
+          // Initialize a Contract instance to interact with the Smart Contract.
         const contract = new ethers.Contract(
-            BanyanContractAddress, BanyanABI, provider
-        ).connect(signer)
+            BanyanContractAddress, BanyanContractABI, signer
+          )
         // Submit the deal proposal to the Banyan network as an offer
-        let tx = await contract.startOffer(
-            dealProposal.executor_address,
-            dealProposal.deal_length_in_blocks,
-            dealProposal.proof_frequency,
-            dealProposal.bounty,
-            dealProposal.collateral,
-            dealProposal.erc20_token_denomination,
-            dealProposal.file_size,
-            dealProposal.file_cid,
-            dealProposal.file_blake3,
-        );
-        // Return the ID of the DealProposal.
-        return tx.hash;
+        let txResponse = await contract.createOffer(
+          dealProposal.executor_address,
+          dealProposal.deal_length_in_blocks,
+          dealProposal.proof_frequency_in_blocks,
+          // TODO: Get Types to work correctly with ethers.js, as part of refactor.
+          // dealProposal.bounty,
+          // dealProposal.collateral,
+          1,1,
+          dealProposal.erc20_token_denomination,
+          dealProposal.file_size,
+          dealProposal.file_cid,
+          dealProposal.file_blake3,
+        ).catch(error => {
+            console.log("Error Submitting proposal to chain: ", error);
+            error.message = "Error Submitting proposal to chain: " + error.message +
+              " - Contract Address: " + contract.address;
+            throw error;
+        });
+        // Return the ID of the DealProposal, which is the response
+        return txResponse.toString();
     }
 
     /**
@@ -215,7 +229,7 @@ export type DealProposal = {
     executor_address: string; // The address of the Executor to propose the deal to
 
     deal_length_in_blocks: number; // The number of blocks the deal will last for
-    proof_frequency: number; // The number of blocks between each proof
+    proof_frequency_in_blocks: number; // The number of blocks between each proof
 
     // The amount of tokens that the deal will be worth
     bounty: number; // The price of the deal in the Token, in $ per Byte
@@ -229,20 +243,6 @@ export type DealProposal = {
 }
 
 /**
- * An Enum for the different states a deal can be in.
- */
-export enum DealStatus  {
-    NON,
-    PROPOSED,
-    ACCEPTED,
-    TIMEDOUT,
-    CANCELLED,
-    COMPLETE ,
-    FINALIZING,
-    DONE
-}
-
-/**
  * What Data is associated with a deal made on the Banyan network.
  */
 export type Deal = {
@@ -251,7 +251,7 @@ export type Deal = {
     // Deal timing information
     deal_start_block: number; // The block number the deal started at
     deal_length_in_blocks: number; // The number of blocks the deal will last for
-    proof_frequency: number; // The number of blocks between each proof
+    proof_frequency_in_blocks: number; // The number of blocks between each proof
 
     // The amount of tokens that the deal will be worth
     bounty: number; // The price of the deal in the Token, in $ per Byte
@@ -263,33 +263,108 @@ export type Deal = {
     file_cid: string; // The CID of the file to be uploaded
     file_blake3: string; // The Blake3 hash of the file to be uploaded
 
-    status: DealStatus, // The status of the deal
+    status: string, // The status of the deal
 }
 
-export function getDealStatusDescription(dealStatus: DealStatus): string {
-    switch (dealStatus) {
-        case DealStatus.NON:
-            return 'Non';
-        case DealStatus.PROPOSED:
-            return 'Proposed';
-        case DealStatus.ACCEPTED:
-            return 'Accepted';
-        case DealStatus.TIMEDOUT:
-            return 'Timed Out';
-        case DealStatus.CANCELLED:
-            return 'Cancelled';
-        case DealStatus.COMPLETE:
-            return 'Complete';
-        case DealStatus.FINALIZING:
-            return 'Finalizing';
-        case DealStatus.DONE:
-            return 'Done';
+// export function getDealStatusDescription(dealStatus: DealStatus): string {
+//     switch (dealStatus) {
+//         case DealStatus.NON:
+//             return 'Non';
+//         case DealStatus.PROPOSED:
+//             return 'Proposed';
+//         case DealStatus.ACCEPTED:
+//             return 'Accepted';
+//         case DealStatus.TIMEDOUT:
+//             return 'Timed Out';
+//         case DealStatus.CANCELLED:
+//             return 'Cancelled';
+//         case DealStatus.COMPLETE:
+//             return 'Complete';
+//         case DealStatus.FINALIZING:
+//             return 'Finalizing';
+//         case DealStatus.DONE:
+//             return 'Done';
+//         default:
+//             return 'Unknown';
+//     }
+// }
+
+/**
+ * @description Get the on-chain deal status of a deal by its ID
+ * @param dealId
+ * @returns {Promise<DealStatus>}
+ */
+export async function getDealStatus(dealId: string): Promise<string> {
+    const web3Modal = new Web3Modal(web3ModalConfig);
+    const instance = await web3Modal.connect();
+    const provider = new ethers.providers.Web3Provider(instance);
+
+    // Initialize a Contract instance to interact with the Smart Contract.
+    const contract = new ethers.Contract(
+      BanyanContractAddress, BanyanContractABI, provider
+    )
+
+    return await contract.getDealStatus(Number(dealId)).catch((error) => {
+        console.log(error);
+        return 'NON';
+    });
+}
+
+/**
+ * @description Get the on-chain deal on-chain its ID
+ * @param dealId
+ * @returns {Promise<Deal>}
+ */
+export async function getDeal(dealId: string): Promise<Deal> {
+    // TODO: Figure out the format of this data on chain and how its passed back.
+    const web3Modal = new Web3Modal(web3ModalConfig);
+    const instance = await web3Modal.connect();
+    const provider = new ethers.providers.Web3Provider(instance);
+
+    // Initialize a Contract instance to interact with the Smart Contract.
+    const contract = new ethers.Contract(
+      BanyanContractAddress, BanyanContractABI, provider
+    )
+
+    // TODO: Figure out the transform function for the Deal.
+    return await contract.getDeal(Number(dealId)).catch((error) => {
+        console.log(error);
+        // For now, return a default deal.
+        return {
+            deal_start_block: 0,
+            deal_length_in_blocks: 0,
+            proof_frequency_in_blocks: 0,
+            bounty: 0,
+            collateral: 0,
+            erc20_token_denomination: '',
+            file_size: 0,
+            file_cid: '',
+            file_blake3: '',
+            status: 'NON',
+        };
+    });
+}
+
+/**
+ * @description Get the String representation of a token denomination from its Address.
+ * @param {string} tokenAddress - The address of the token.
+ * @returns {string} - The String representation of the token denomination.
+ */
+export function addressToDenomination(tokenAddress: string): string {
+    // TODO: Populate this with actual token denominations or use an API call.
+    switch (tokenAddress) {
+        case BanyanContractAddress:
+            return 'Banyan';
+        case C.USDC_ADDRESS:
+            return 'USDC';
         default:
             return 'Unknown';
     }
 }
 
-export interface FileStagingResponse {
+// HELPERS //
+
+interface FileStagingResponse {
     cid: string;
     blake3hash: string; // TODO: add blake3 to the response
     estuaryId: string; // I feel like this is a bad name. TODO: rename

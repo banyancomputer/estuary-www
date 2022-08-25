@@ -7,13 +7,6 @@ import * as C from '@common/constants';
 /* Wallet Sign In */
 import * as S from '@common/siwe';
 
-declare global {
-  interface Window {
-    ethereum: { request: (opt: {method: string}) => Promise<Array<string>> };
-    web3: unknown;
-  }
-}
-
 import Cookies from 'js-cookie';
 import Page from '@components/Page';
 import Navigation from '@components/Navigation';
@@ -85,19 +78,19 @@ async function handleSiweLogin(state: any, host) {//connector: S.EthProviders, _
   let providerData = await S.getProviderData().catch(err => {
     return null;
   });
-    if (!providerData) {
-        alert("Could not connect to wallet");
-        return;
-    }
+  if (!providerData) {
+    alert("Could not connect to wallet");
+    return;
+  }
   let { provider, address, ens } = providerData;
-    // console.log("Provider Data", providerData);
+  // console.log("Provider Data", providerData);
   let authKey: string | {error: any} = await S.estuaryAuth(provider, address, ens).catch(err => {
     return null;
   });
-    if (!authKey) {
-        alert("Could not retrieve auth key");
-        return;
-    }
+  if (!authKey) {
+    alert("Could not retrieve auth key");
+    return;
+  }
   console.log("Auth Key: ", authKey);
   Cookies.set(C.auth, authKey, {
     expires: 1,
@@ -109,8 +102,8 @@ async function handleSiweLogin(state: any, host) {//connector: S.EthProviders, _
   //   expires: 1,
   // });
   Cookies.set(C.userWallet, {address, ens} as UserWalletIdentifier, {
-      expires: 1,
-    });
+    expires: 1,
+  });
   // Delete the cookie for the nonce
   Cookies.remove(C.siweNonce);
   // Navigate to the home page
@@ -134,17 +127,17 @@ function SignInPage(props: any) {
 
         <div className={styles.actions}>
           <Button
-              style={{ width: '100%', marginTop: 8 }}
-              onClick={async () => {
-                setState({ ...state, loading: true });
-                let err = await handleSiweLogin(
-                    state, props.api, //S.EthProviders.WALLET_CONNECT
-                );
-                if (err) {
-                  alert(err.error);
-                  setState({ ...state, loading: false });
-                }
-              }}
+            style={{ width: '100%', marginTop: 8 }}
+            onClick={async () => {
+              setState({ ...state, loading: true });
+              let err = await handleSiweLogin(
+                state, props.api, //S.EthProviders.WALLET_CONNECT
+              );
+              if (err) {
+                alert(err.error);
+                setState({ ...state, loading: false });
+              }
+            }}
           >
             Sign in with with your Wallet
           </Button>
