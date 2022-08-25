@@ -9,9 +9,7 @@ import WalletConnect from '@walletconnect/web3-provider';
 import { ethers } from 'ethers';
 import { SiweMessage } from "siwe";
 import * as C from '@common/constants';
-// import Web3 from "web3";
 import Web3Modal from "web3modal";
-import WalletConnectProvider from "@walletconnect/web3-provider";
 
 const EstuaryHost = C.api.host;
 
@@ -25,7 +23,7 @@ export const enum EthProviders {
  * Our provider options for the wallets we support.
  */
 export const web3ModalConfig = {
-    network: "mainnet", // optional TODO: Make this configurable
+    network: "rinkeby", // optional TODO: Make this configurable
     cacheProvider: true, // optional
     providerOptions: {
         walletconnect: {
@@ -58,7 +56,7 @@ export type UserWalletIdentifier = {
 
 /**
  * @description Attempt to get an Ethereum provider from the client.
- * @returns {providerData} - The provider data.
+ * @returns {ProviderData} - The provider data.
  */
 export async function getProviderData(
     // connector: EthProviders, // The connector to use

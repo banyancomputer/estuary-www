@@ -17,8 +17,7 @@ import UploadList from '@components/UploadList';
 import Button from '@components/Button';
 
 import { H1, H2, H3, H4, P } from '@components/Typography';
-import {Cookies} from "js-cookie";
-import {DealMaker} from "@common/banyan";
+import {DealMaker, addressToDenomination} from "@common/banyan";
 
 export async function getServerSideProps(context) {
   const viewer = await U.getViewerFromHeader(context.req.headers);
@@ -90,10 +89,10 @@ export default class UploadPage extends React.Component<any> {
     }
 
     const upload = {
-        // This generates a deal proposal for the file w/o an IPFS cid or Blake3 hash.
-        id: `file-${new Date().getTime()}`,
-        dealProposal: this.state.dealMaker.generateDealProposal(file),
-        file,
+      // This generates a deal proposal for the file w/o an IPFS cid or Blake3 hash.
+      id: `file-${new Date().getTime()}`,
+      dealProposal: this.state.dealMaker.generateDealProposal(file),
+      file,
     } as Upload;
 
     // Record the new Upload in our state.
@@ -117,10 +116,10 @@ export default class UploadPage extends React.Component<any> {
             <P style={{ marginTop: 16 }}>By default your deals will use the following configuration:</P>
             <P style={{ marginTop: 16 }}>Storage Duration: {this.state.dealMaker.getDealConfiguration().deal_length_in_blocks} Ethereum Blocks (~1 Year)</P>
             <P style={{ marginTop: 16 }}>Storage Price: {this.state.dealMaker.getDealConfiguration().bounty_per_tib}
-              {this.state.dealMaker.getDealConfiguration().erc20_token_denomination} per TiB
+              {addressToDenomination(this.state.dealMaker.getDealConfiguration().erc20_token_denomination)} per TiB
             </P>
             <P style={{ marginTop: 16 }}>Storage Collateral: {this.state.dealMaker.getDealConfiguration().collateral_per_tib}
-              {this.state.dealMaker.getDealConfiguration().erc20_token_denomination} per TiB
+              {addressToDenomination(this.state.dealMaker.getDealConfiguration().erc20_token_denomination)} per TiB
             </P>
             <UploadZone onFile={this._handleFile} onFlush={this._handleFlush} host={this.props.api} />
 
@@ -152,12 +151,12 @@ export default class UploadPage extends React.Component<any> {
                 </div>
 
                 <UploadList
-                    ref={this.list}
-                    dealMaker={this.state.dealMaker}
-                    uploads={this.state.uploads}
-                    viewer={this.props.viewer}
-                    onRemove={this._handleRemove}
-                    host={this.props.api} />
+                  ref={this.list}
+                  dealMaker={this.state.dealMaker}
+                  uploads={this.state.uploads}
+                  viewer={this.props.viewer}
+                  onRemove={this._handleRemove}
+                  host={this.props.api} />
               </React.Fragment>
             ) : null}
           </SingleColumnLayout>
