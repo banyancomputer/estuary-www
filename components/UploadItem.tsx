@@ -127,23 +127,33 @@ export default class UploadItem extends React.Component<any> {
     };
 
     // Stage the file and extract relevant data from the response.
-    let {cid, blake3hash} = await
+    let resp = await
       dealMaker.stageFile(file, xhr)
         .then((resp) => {
+          console.log('staged', resp);
           // On success, reset state and extract relevant data from the response.
           startTime = null;
           secondsElapsed = 0;
           let dealProposal = dealMaker.generateDealProposal(file);
           this.setState({
             ...this.state,
-            loaded: 1, // Note (al): Not sure if this is right.
+            loaded: 1,
             fileStagedResponse: resp,
             dealProposal,
           });
           return resp;
         }).catch((error) => {
-        throw new Error(error);
+        alert(`Error staging file: ${error}`);
+        return {error: error};
       });
+    if (resp && resp.error) {
+      this.setState({
+        ...this.state,
+        loaded: 0,
+      });
+      return;
+    }
+    const {cid, blake3hash } = resp;
     // Create the DealProposal.
     let dealProposal = dealMaker.generateDealProposal(file, cid, blake3hash);
     this.setState({...this.state, dealProposal});
