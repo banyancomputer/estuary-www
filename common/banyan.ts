@@ -9,7 +9,7 @@ import {web3ModalConfig} from "@common/siwe";
 
 // TODO: Did you know that Env variables in Next.js are extremely annoying?
 // TODO: This is a temporary fix until we can figure out how to use them properly.
-const BanyanContractAddress  = '0xd7c621E99ABCaE3e1267DFA94323725D070654FC' || '0x0000000000000000000000000000000000000000';
+const BanyanContractAddress  = '0x9B6F0b095159E5670F5433ED640515D4eaA1Ed69' || '0x0000000000000000000000000000000000000000';
 
 // TODO: This needs to be refactored to use the Banyan Contract correctly
 const BanyanContractABI = [
@@ -25,6 +25,12 @@ const BanyanContractABI = [
     "   string calldata _file_cid, " +
     "   string calldata _file_blake3, " +
     ") public payable returns (uint256)",
+
+  // An Event to be emitted when a Deal is created
+  "event DealCreated(" +
+    "   address indexed creator_address, " +
+    "   uint256 indexed dealId, " +
+    ")",
 
     // // Check the status of a Banyan Deal
     "function getDealStatus(uint256 _dealId) public view returns (uint8)",
@@ -173,45 +179,39 @@ export class DealMaker {
      * @return {Promise<string>} - The ID of the DealProposal.
      */
     public async submitDealProposal(dealProposal: DealProposal): Promise<string> {
-        // Check if the deal proposal is valid.
-        // TODO: Make this more robust.
-
         if (!dealProposal.file_cid || !dealProposal.file_blake3) {
             throw new Error('Deal proposal is not valid.');
         }
-        console.log("Submitting new deal Proposal: ", dealProposal);
-        // TODO: Read this from some sort of cache with Web3Modal
-        // Get the Provider from the options.
 
+        /**
+         * Initialize access to our Provider and Signer
+         */
+        console.log("Initializing Provider...")
         const web3Modal = new Web3Modal(web3ModalConfig);
         const instance = await web3Modal.connect();
         const provider = new ethers.providers.Web3Provider(instance);
-        const signer = provider.getSigner();
+        const signer = await provider.getSigner();
+        const signerAddress = await signer.getAddress();
 
-        /** BUG: The following will throw an error saying the contract reverted.
-         *  I am not sure why this is happening. This needs to be explored and fixed in the next overhaul of the frontend.
+        console.log("Signer Address: " + signerAddress)
+
+        /**
+         * Initialize a contract instance and filter to submit and catch the result of the Deal Proposal
          */
-          // Initialize a Contract instance to interact with the Smart Contract.
-          console.log("Initializing contract instance: ", BanyanContractAddress);
+        console.log("Initializing Contract...")
+        // Initialize a Contract instance to interact with the Smart Contract.
+        const contract = new ethers.Contract(BanyanContractAddress, BanyanContractABI, provider)
+        // Initialize a filter to catch the DealCreated event
+        const filter = contract.filters.DealCreated(signerAddress, null)
 
-              const contract = new ethers.Contract(
-                BanyanContractAddress, BanyanContractABI, signer
-              )
-
-
-        console.log("Submitting proposal to Contract: ", BanyanContractAddress,
-          "- File CID: ", dealProposal.file_cid,
-          "- File Blake3: ", dealProposal.file_blake3,
-          "- File Size: ", dealProposal.file_size,
-          "- Executor Address: ", dealProposal.executor_address,
-          "- Deal Length: ", dealProposal.deal_length_in_blocks,
-          "- Proof Frequency: ", dealProposal.proof_frequency_in_blocks,
-          "- Bounty: ", dealProposal.bounty,
-          "- Collateral: ", dealProposal.collateral,
-          "- ERC20 Token Denomination: ", dealProposal.erc20_token_denomination,
-        );
+        /**
+         * Interact with the contract in order to trigger a state change
+         */
+        console.log("Submitting Transaction...")
+        // Connect the Contract to the signer.
+        const contractWithSigner = contract.connect(signer);
         // Submit the deal proposal to the Banyan network as an offer
-        let txResponse = await contract.createDeal(
+        let txResponse = await contractWithSigner.createDeal(
           dealProposal.executor_address,
           dealProposal.deal_length_in_blocks,
           dealProposal.proof_frequency_in_blocks,
@@ -223,15 +223,34 @@ export class DealMaker {
           dealProposal.file_size,
           dealProposal.file_cid,
           dealProposal.file_blake3,
+          {
+            gasLimit: ethers.utils.parseUnits('100000', 'wei'),
+            gasPrice: ethers.utils.parseUnits('1', 'gwei'),
+              value: ethers.utils.parseUnits('0', 'wei')
+          }
         ).catch(error => {
             console.log("Error Submitting proposal to chain: ", error);
             error.message = "Error Submitting proposal to chain: " + error.message +
               " - Contract Address: " + contract.address;
             throw error;
         });
-        console.log("Transaction Response: ", txResponse);
-        // Return the ID of the DealProposal, which is the response
-        return txResponse.toString();
+
+        let txReceipt = await txResponse.wait();
+        console.log("Transaction Receipt: ", txReceipt);
+        let dealId = txReceipt.events.find(event => event.event === 'DealCreated').args.dealId;
+        console.log("Deal ID: ", dealId);
+        return dealId;
+        /**
+         * Wait for the transaction to be mined and return the ID of the DealProposal.
+         * Listen for the DealCreated event to be emitted by the Smart Contract.
+         */
+        // console.log("Listening for event...")
+        // let ret = 0;
+        // await contract.once(filter, (creator_address, dealId, event) => {
+        //     console.log("Received event: ", event)
+        //     ret = dealId;
+        // });
+        // return ret.toString();
     }
 
     /**
@@ -370,7 +389,6 @@ const getDealReturnMapping = {
  * @returns {Promise<Deal>}
  */
 export async function getDeal(dealId: string): Promise<Deal> {
-    // TODO: Figure out the format of this data on chain and how its passed back.
     const web3Modal = new Web3Modal(web3ModalConfig);
     const instance = await web3Modal.connect();
     const provider = new ethers.providers.Web3Provider(instance);

@@ -75,6 +75,7 @@ export default class UploadItem extends React.Component<any> {
     // staging: !this.props.file.estimation,
     fileStagedResponse: null,
     dealProposal: this.props.upload.dealProposal,
+    dealInProgress: false,
     dealSubmitted: false,
   };
 
@@ -160,6 +161,7 @@ export default class UploadItem extends React.Component<any> {
   }
 
   submitDeal = async () => {
+    this.setState({dealInProgress: true});
     let {estuaryId} = this.state.fileStagedResponse;
     let {dealProposal} = this.state;
     let dealMaker = this.props.dealMaker;
@@ -172,14 +174,36 @@ export default class UploadItem extends React.Component<any> {
         });
       }).catch((error) => {
         alert("Could not submit deal proposal: " + error.message);
+        this.setState({
+          ...this.state,
+          dealInProgress: false,
+        });
         return;
       });
+    console.log("Deal ID: ", dealId)
+    // TODO: Figure out return type
+    if (!dealId) {
+      alert("Invalid Deal ID");
+      this.setState({
+        ...this.state,
+        dealInProgress: false,
+      });
+      return;
+    }
     // Update the dealId of the file in Estuary.
     dealId = await dealMaker.updateDealId(estuaryId, dealId).catch((error) => {
       // throw new Error(error);
       alert("Could not update dealId in Estuary: " + error +
         "- EstuaryId: " + estuaryId + " - DealId: " + dealId
       );
+      this.setState({
+        ...this.state,
+        dealInProgress: false,
+      });
+      this.setState({
+        ...this.state,
+        dealInProgress: false,
+      });
       return;
     });
   }
@@ -218,7 +242,7 @@ export default class UploadItem extends React.Component<any> {
                     {this.props.upload.file.name} staged to our node and ready for hosting!
                   </ActionRow>
                   {this.state.dealProposal ? (
-                    // TODO: Figure out how to make this inline with the above ActionRow.
+                    // TODO: This button neeeds to be disabled if the deal is in progress.
                     <div className={styles.right}>
                        <span className={styles.button} onClick={this.submitDeal}>
                          Submit Deal
