@@ -9,12 +9,12 @@ import {web3ModalConfig} from "@common/siwe";
 
 // TODO: Did you know that Env variables in Next.js are extremely annoying?
 // TODO: This is a temporary fix until we can figure out how to use them properly.
-const BanyanContractAddress  = '0x899647E1A672ecC9d352027e372A453467313889' || '0x0000000000000000000000000000000000000000';
+const BanyanContractAddress  = '0xd7c621E99ABCaE3e1267DFA94323725D070654FC' || '0x0000000000000000000000000000000000000000';
 
 // TODO: This needs to be refactored to use the Banyan Contract correctly
 const BanyanContractABI = [
     // Create a new Banyan Deal
-    "function createOffer(" +
+    "function createDeal(" +
     "   address _executor_address, " +
     "   uint256 _deal_length_in_blocks, " +
     "   uint256 _proof_frequency_in_blocks, " +
@@ -24,13 +24,26 @@ const BanyanContractABI = [
     "   uint256 _file_size, " +
     "   string calldata _file_cid, " +
     "   string calldata _file_blake3, " +
-    ") public view returns (uint256)",
+    ") public payable returns (uint256)",
 
     // // Check the status of a Banyan Deal
-    "function getDealStatus(uint256 _deal_id) public view returns (uint256)",
+    "function getDealStatus(uint256 _dealId) public view returns (uint8)",
 
     // Get the details of a Banyan Deal
-    "function getDeal(uint256 _deal_id) public view returns (uint256)", // TODO: Figure out the correct return type for this
+    "function getDeal(uint256 _dealId) public view returns (" +
+    "        uint8 deal_status," +
+    "        address creator_address," +
+    "        address executor_address," +
+    "        uint256 deal_start_block," +
+    "        uint256 deal_length_in_blocks," +
+    "        uint256 proof_frequency_in_blocks," +
+    "        uint256 bounty," +
+    "        uint256 collateral," +
+    "        address erc20_token_denomination," +
+    "        uint256 file_size," +
+    "        string memory file_cid," +
+    "        string memory file_blake3" +
+    "    ) ", // TODO: Figure out the correct return type for this
 ];
 
 /**
@@ -179,11 +192,26 @@ export class DealMaker {
          *  I am not sure why this is happening. This needs to be explored and fixed in the next overhaul of the frontend.
          */
           // Initialize a Contract instance to interact with the Smart Contract.
-        const contract = new ethers.Contract(
-            BanyanContractAddress, BanyanContractABI, signer
-          )
+          console.log("Initializing contract instance: ", BanyanContractAddress);
+
+              const contract = new ethers.Contract(
+                BanyanContractAddress, BanyanContractABI, signer
+              )
+
+
+        console.log("Submitting proposal to Contract: ", BanyanContractAddress,
+          "- File CID: ", dealProposal.file_cid,
+          "- File Blake3: ", dealProposal.file_blake3,
+          "- File Size: ", dealProposal.file_size,
+          "- Executor Address: ", dealProposal.executor_address,
+          "- Deal Length: ", dealProposal.deal_length_in_blocks,
+          "- Proof Frequency: ", dealProposal.proof_frequency_in_blocks,
+          "- Bounty: ", dealProposal.bounty,
+          "- Collateral: ", dealProposal.collateral,
+          "- ERC20 Token Denomination: ", dealProposal.erc20_token_denomination,
+        );
         // Submit the deal proposal to the Banyan network as an offer
-        let txResponse = await contract.createOffer(
+        let txResponse = await contract.createDeal(
           dealProposal.executor_address,
           dealProposal.deal_length_in_blocks,
           dealProposal.proof_frequency_in_blocks,
@@ -201,6 +229,7 @@ export class DealMaker {
               " - Contract Address: " + contract.address;
             throw error;
         });
+        console.log("Transaction Response: ", txResponse);
         // Return the ID of the DealProposal, which is the response
         return txResponse.toString();
     }
@@ -246,8 +275,10 @@ export type DealProposal = {
  * What Data is associated with a deal made on the Banyan network.
  */
 export type Deal = {
-    // TODO: Do I need this? I assume we'd read Deals based on the DealID
-    // deal_id: string; // The ID of the deal
+    deal_status: DealStatus; // The status of the deal
+    creator_address: string; // The address of the creator of the deal
+    executor_address: string; // The address of the executor of the deal
+
     // Deal timing information
     deal_start_block: number; // The block number the deal started at
     deal_length_in_blocks: number; // The number of blocks the deal will last for
@@ -262,32 +293,44 @@ export type Deal = {
     file_size: number; // The size of the file to be uploaded (in bytes)
     file_cid: string; // The CID of the file to be uploaded
     file_blake3: string; // The Blake3 hash of the file to be uploaded
-
-    status: string, // The status of the deal
 }
 
-// export function getDealStatusDescription(dealStatus: DealStatus): string {
-//     switch (dealStatus) {
-//         case DealStatus.NON:
-//             return 'Non';
-//         case DealStatus.PROPOSED:
-//             return 'Proposed';
-//         case DealStatus.ACCEPTED:
-//             return 'Accepted';
-//         case DealStatus.TIMEDOUT:
-//             return 'Timed Out';
-//         case DealStatus.CANCELLED:
-//             return 'Cancelled';
-//         case DealStatus.COMPLETE:
-//             return 'Complete';
-//         case DealStatus.FINALIZING:
-//             return 'Finalizing';
-//         case DealStatus.DONE:
-//             return 'Done';
-//         default:
-//             return 'Unknown';
-//     }
-// }
+export enum DealStatus {
+    NON = 'NON',
+    PROPOSED = 'PROPOSED',
+    ACCEPTED = 'ACCEPTED',
+    ACTIVE = 'ACTIVE',
+    COMPLETED = 'COMPLETED',
+    FINALIZING = 'FINALIZING',
+    FINALIZED = 'FINALIZED',
+    TIMEDOUT = 'TIMEDOUT',
+    CANCELLED = 'CANCELLED',
+}
+
+export function getDealStatusFromInt(status: number): DealStatus {
+    switch (status) {
+        case 0:
+            return DealStatus.NON;
+        case 1:
+            return DealStatus.PROPOSED;
+        case 2:
+            return DealStatus.ACCEPTED;
+        case 3:
+            return DealStatus.ACTIVE;
+        case 4:
+            return DealStatus.COMPLETED;
+        case 5:
+            return DealStatus.FINALIZING;
+        case 6:
+            return DealStatus.FINALIZED;
+        case 7:
+            return DealStatus.TIMEDOUT;
+        case 8:
+            return DealStatus.CANCELLED;
+        default:
+            return DealStatus.NON;
+    }
+}
 
 /**
  * @description Get the on-chain deal status of a deal by its ID
@@ -304,11 +347,22 @@ export async function getDealStatus(dealId: string): Promise<string> {
       BanyanContractAddress, BanyanContractABI, provider
     )
 
-    return await contract.getDealStatus(Number(dealId)).catch((error) => {
+    return await contract.getDealStatus((dealId)).catch((error) => {
         console.log(error);
-        return 'NON';
+        throw error;
+    }).then((status) => {
+        return getDealStatusFromInt(status);
     });
 }
+
+/**
+ * A mapping for extracting the deal from the Banyan smart contract.
+ */
+const getDealReturnMapping = {
+    'deal_status': {}
+}
+
+
 
 /**
  * @description Get the on-chain deal on-chain its ID
@@ -326,22 +380,46 @@ export async function getDeal(dealId: string): Promise<Deal> {
       BanyanContractAddress, BanyanContractABI, provider
     )
 
-    // TODO: Figure out the transform function for the Deal.
+    /*
+     * This returns an array of variables specified by the following ABI:
+     * function getDeal(uint256 _dealId) public view returns (
+            uint8 deal_status,
+            address creator_address,
+            address executor_address,
+            uint256 deal_start_block,
+            uint256 deal_length_in_blocks,
+            uint256 proof_frequency_in_blocks,
+            uint256 bounty,
+            uint256 collateral,
+            address erc20_token_denomination,
+            uint256 file_size,
+            string memory file_cid,
+            string memory file_blake3
+     * )
+     * These variables must be read into the Deal object in the same order as the ABI.
+     */
     return await contract.getDeal(Number(dealId)).catch((error) => {
         console.log(error);
-        // For now, return a default deal.
+        throw error;
+    }).then((data) => {
+        // If the deal is not found, raise an error.
+        if (data[0] === 0) {
+            throw new Error('Deal not found.');
+        }
         return {
-            deal_start_block: 0,
-            deal_length_in_blocks: 0,
-            proof_frequency_in_blocks: 0,
-            bounty: 0,
-            collateral: 0,
-            erc20_token_denomination: '',
-            file_size: 0,
-            file_cid: '',
-            file_blake3: '',
-            status: 'NON',
-        };
+            deal_status: getDealStatusFromInt(data[0]),
+            creator_address: data[1],
+            executor_address: data[2],
+            deal_start_block: data[3].toString(),
+            deal_length_in_blocks: data[4].toString(),
+            proof_frequency_in_blocks: data[5].toString(),
+            bounty: data[6].toString(),
+            collateral: data[7].toString(),
+            erc20_token_denomination: data[8],
+            file_size: data[9].toString(),
+            file_cid: data[10],
+            file_blake3: data[11]
+        } as Deal;
     });
 }
 

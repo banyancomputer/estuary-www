@@ -171,7 +171,7 @@ export default class UploadItem extends React.Component<any> {
           dealSubmitted: true,
         });
       }).catch((error) => {
-        alert("Could not submit deal proposal: " + error);
+        alert("Could not submit deal proposal: " + error.message);
         return;
       });
     // Update the dealId of the file in Estuary.
