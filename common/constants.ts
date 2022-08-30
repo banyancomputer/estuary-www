@@ -58,6 +58,22 @@ export const statusColors = {
 
 /* Helpers */
 
+// TODO - this is a temporary solution until we have a better way to configure the API host
+
+export function getContractAddress(): string {
+  if (process.env.BANYAN_CONTRACT_ADDRESS) {
+    return process.env.BANYAN_CONTRACT_ADDRESS;
+  }
+
+  switch (process.env.NODE_ENV) {
+    case 'production':
+      // TODO: Get a real contract address
+      return '0x0000000000000000000000000000000000000000';
+    default:
+      return '0x595481A61df02A716b829411daD9838578d10072';
+  }
+}
+
 function getAPIHost(): string {
   if (process.env.ESTUARY_API) {
     return process.env.ESTUARY_API;

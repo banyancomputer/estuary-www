@@ -6,10 +6,7 @@ import Web3Modal from "web3modal";
 import {web3ModalConfig} from "@common/siwe";
 
 /* Exports for Interacting with Banyan Infrastructure */
-
-// TODO: Did you know that Env variables in Next.js are extremely annoying?
-// TODO: This is a temporary fix until we can figure out how to use them properly.
-const BanyanContractAddress  = '0xF5aeb82a270b0d17fB4cd48b090cdCC5De840D13' || '0x0000000000000000000000000000000000000000';
+const BanyanContractAddress  = C.getContractAddress() || '0x0000000000000000000000000000000000000000';
 
 // TODO: This needs to be refactored to use the Banyan Contract correctly
 const BanyanContractABI = [
@@ -25,18 +22,6 @@ const BanyanContractABI = [
     "        string calldata _file_cid," +
     "        string calldata _file_blake3" +
     "    ) public payable returns (uint256)",
-
-  // "function testPayble_10(" +
-  // "        address _executor_address," +
-  // "        uint256 _deal_length_in_blocks," +
-  // "        uint256 _proof_frequency_in_blocks," +
-  // "        uint256 _bounty," +
-  // "        uint256 _collateral," +
-  // "        address _erc20_token_denomination," +
-  // "        uint256 _file_size," +
-  // "        string calldata _file_cid," +
-  // "        string calldata _file_blake3" +
-  // "    ) public payable returns (uint256)",
 
     // An Event to be emitted when a Deal is created
   "event DealCreated(" +
@@ -61,7 +46,7 @@ const BanyanContractABI = [
     "        uint256 file_size," +
     "        string memory file_cid," +
     "        string memory file_blake3" +
-    "    ) ", // TODO: Figure out the correct return type for this
+    "    ) "
 ];
 
 /**
@@ -146,9 +131,8 @@ export class DealMaker {
             executor_address: ethers.utils.getAddress(this.options.deal_configuration.executor_address),
             deal_length_in_blocks: this.options.deal_configuration.deal_length_in_blocks,
             proof_frequency_in_blocks: this.options.deal_configuration.proof_frequency_in_blocks,
-            // TODO: NEed to do this right
-            bounty: bounty.toNumber(), //1, //this.options.deal_configuration.bounty_per_tib * num_tib,
-            collateral: collateral.toNumber(), //1,//this.options.deal_configuration.collateral_per_tib * num_tib,
+            bounty: bounty.toNumber(),
+            collateral: collateral.toNumber(),
             erc20_token_denomination: ethers.utils.getAddress(this.options.deal_configuration.erc20_token_denomination),
             file_size: file.size,
             file_cid: cid,
@@ -219,35 +203,32 @@ export class DealMaker {
         /**
          * Initialize access to our Provider and Signer
          */
-        console.log("Initializing Provider...")
+        // console.log("Initializing Provider...")
         const web3Modal = new Web3Modal(web3ModalConfig);
         const instance = await web3Modal.connect();
         const provider = new ethers.providers.Web3Provider(instance);
         const signer = await provider.getSigner();
-        const signerAddress = await signer.getAddress();
-
-        console.log("Signer Address: " + signerAddress)
 
         /**
          * Initialize a contract instance and filter to submit and catch the result of the Deal Proposal
          */
-        console.log("Initializing Contract...")
+        // console.log("Initializing Contract...")
         // Initialize a Contract instance to interact with the Smart Contract.
         const contract = new ethers.Contract(BanyanContractAddress, BanyanContractABI, provider);
 
         /**
          * Interact with the contract in order to trigger a state change
          */
-        console.log("Submitting Transaction...")
+        // console.log("Submitting Transaction...")
         // Connect the Contract to the signer.
         const contractWithSigner = contract.connect(signer);
         // Submit the transaction to the contract.
         let txResponse = await contractWithSigner.createDeal(
           ...Object.values(dealProposal),
           {
+              // TODO: Figure out a better way to configure gas
               gasLimit: ethers.utils.parseUnits('3000000', 'wei'),
               gasPrice: ethers.utils.parseUnits('70', 'gwei'),
-              //     value: ethers.utils.parseUnits('0', 'wei')
           }
         ).catch(error => {
             error.message = "Error Submitting proposal to chain: " + error.message +
@@ -257,10 +238,8 @@ export class DealMaker {
         });
         // Wait for the transaction to be mined.
         let txReceipt = await txResponse.wait();
-        console.log("Transaction Receipt: ", txReceipt);
-        let dealId = txReceipt.events.find(event => event.event === 'DealCreated').args.dealId.toNumber();
-        console.log("Deal ID: ", dealId);
-        return dealId;
+        // console.log("Transaction Receipt: ", txReceipt);
+        return txReceipt.events.find(event => event.event === 'DealCreated').args.dealId.toNumber();
     }
 
     /**
@@ -272,7 +251,6 @@ export class DealMaker {
         return await R.post('/content/update-deal-id', { estuaryId, dealId }).then((json) => {
             // TODO: Figure out appropriate error handling for this.
             if (!json.dealId) {
-                // alert('Error: Could not record DealID in the database.');
                 return '';
             }
             return json.dealId;
