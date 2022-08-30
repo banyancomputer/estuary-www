@@ -242,11 +242,17 @@ export default class UploadItem extends React.Component<any> {
                     {this.props.upload.file.name} staged to our node and ready for hosting!
                   </ActionRow>
                   {this.state.dealProposal ? (
-                    // TODO: This button neeeds to be disabled if the deal is in progress.
-                    <div className={styles.right}>
-                       <span className={styles.button} onClick={this.submitDeal}>
-                         Submit Deal
-                       </span>
+                    <div>
+                      {!this.state.dealInProgress ? (
+                      // TODO: This button neeeds to be disabled if the deal is in progress.
+                      <div className={styles.right}>
+                         <span className={styles.button} onClick={this.submitDeal}>
+                           Submit Deal
+                         </span>
+                      </div>
+                      ) : (
+                        <LoaderSpinner />
+                      ) }
                     </div>
                   ) : null }
                 </div>

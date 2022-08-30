@@ -1,7 +1,7 @@
 import * as C from './constants';
 import * as R from "@common/requests";
 import Cookies from 'js-cookie';
-import {ethers} from "ethers";
+import { BigNumber, ethers } from 'ethers';
 import Web3Modal from "web3modal";
 import {web3ModalConfig} from "@common/siwe";
 
@@ -114,8 +114,9 @@ export class DealMaker {
             executor_address: this.options.deal_configuration.executor_address,
             deal_length_in_blocks: this.options.deal_configuration.deal_length_in_blocks,
             proof_frequency_in_blocks: this.options.deal_configuration.proof_frequency_in_blocks,
-            bounty: this.options.deal_configuration.bounty_per_tib * num_tib,
-            collateral: this.options.deal_configuration.collateral_per_tib * num_tib,
+            // TODO: NEed to do this right
+            bounty: 1, //this.options.deal_configuration.bounty_per_tib * num_tib,
+            collateral: 1,//this.options.deal_configuration.collateral_per_tib * num_tib,
             erc20_token_denomination: this.options.deal_configuration.erc20_token_denomination,
             file_size: file.size,
             file_cid: cid,
@@ -201,6 +202,10 @@ export class DealMaker {
         console.log("Initializing Contract...")
         // Initialize a Contract instance to interact with the Smart Contract.
         const contract = new ethers.Contract(BanyanContractAddress, BanyanContractABI, provider)
+        // Get the gas estimate for the transaction.
+        const gasEstimate = await contract.estimateGas.createDeal(
+          ...Object.values(dealProposal), {gasLimit: BigNumber.from(3000000)}
+        );
         // Initialize a filter to catch the DealCreated event
         const filter = contract.filters.DealCreated(signerAddress, null)
 
@@ -212,21 +217,12 @@ export class DealMaker {
         const contractWithSigner = contract.connect(signer);
         // Submit the deal proposal to the Banyan network as an offer
         let txResponse = await contractWithSigner.createDeal(
-          dealProposal.executor_address,
-          dealProposal.deal_length_in_blocks,
-          dealProposal.proof_frequency_in_blocks,
-          // TODO: Get Types to work correctly with ethers.js, as part of refactor.
-          // dealProposal.bounty,
-          // dealProposal.collateral,
-          1,1,
-          dealProposal.erc20_token_denomination,
-          dealProposal.file_size,
-          dealProposal.file_cid,
-          dealProposal.file_blake3,
-          {
+          ...Object.values(
+            dealProposal
+          ), {
             gasLimit: ethers.utils.parseUnits('100000', 'wei'),
             gasPrice: ethers.utils.parseUnits('1', 'gwei'),
-              value: ethers.utils.parseUnits('0', 'wei')
+            value: ethers.utils.parseUnits('1', 'wei')
           }
         ).catch(error => {
             console.log("Error Submitting proposal to chain: ", error);
