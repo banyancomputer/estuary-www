@@ -12,6 +12,8 @@ import Cookies from 'js-cookie';
 import ProgressBlock from '@components/ProgressBlock';
 import ActionRow from '@components/ActionRow';
 import LoaderSpinner from '@components/LoaderSpinner';
+import { addressToDenomination } from '@common/banyan';
+import { ethers } from 'ethers';
 
 export class PinStatusElement extends React.Component<any> {
   state = { pinned: false, delegates: ['none'] };
@@ -289,7 +291,7 @@ export default class UploadItem extends React.Component<any> {
                 <ActionRow>{U.bytesToSize(this.props.upload.file.size)}</ActionRow>
                 { this.state.dealProposal.bounty ? (
                   <ActionRow>
-                    Estimated cost: {this.state.dealProposal.bounty} {this.state.dealProposal.erc20_token_denomination}
+                    Estimated cost: {ethers.utils.formatUnits(this.state.dealProposal.bounty, 18)} {addressToDenomination(this.state.dealProposal.erc20_token_denomination)}
                   </ActionRow>
                 ) : (
                   <ActionRow>{this.props.upload.file.name}: no bounty estimation</ActionRow>

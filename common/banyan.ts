@@ -9,34 +9,34 @@ import {web3ModalConfig} from "@common/siwe";
 
 // TODO: Did you know that Env variables in Next.js are extremely annoying?
 // TODO: This is a temporary fix until we can figure out how to use them properly.
-const BanyanContractAddress  = '0x399A5607362223fa86E2101b36254edcf97De76B' || '0x0000000000000000000000000000000000000000';
+const BanyanContractAddress  = '0xF5aeb82a270b0d17fB4cd48b090cdCC5De840D13' || '0x0000000000000000000000000000000000000000';
 
 // TODO: This needs to be refactored to use the Banyan Contract correctly
 const BanyanContractABI = [
     // Create a new Banyan Deal
     "function createDeal(" +
-    "   address _executor_address, " +
-    "   uint256 _deal_length_in_blocks, " +
-    "   uint256 _proof_frequency_in_blocks, " +
-    "   uint256 _bounty, " +
-    "   uint256 _collateral, " +
-    "   string _erc20_token_denomination," +
-    "   uint256 _file_size, " +
-    "   string calldata _file_cid, " +
-    "   string calldata _file_blake3 " +
-    ") public payable returns (uint256)",
+    "        address _executor_address," +
+    "        uint256 _deal_length_in_blocks," +
+    "        uint256 _proof_frequency_in_blocks," +
+    "        uint256 _bounty," +
+    "        uint256 _collateral," +
+    "        address _erc20_token_denomination," +
+    "        uint256 _file_size," +
+    "        string calldata _file_cid," +
+    "        string calldata _file_blake3" +
+    "    ) public payable returns (uint256)",
 
-  "function testPayble_10(" +
-  "        address _executor_address," +
-  "        uint256 _deal_length_in_blocks," +
-  "        uint256 _proof_frequency_in_blocks," +
-  "        uint256 _bounty," +
-  "        uint256 _collateral," +
-  "        address _erc20_token_denomination," +
-  "        uint256 _file_size," +
-  "        string calldata _file_cid," +
-  "        string calldata _file_blake3" +
-  "    ) public payable returns (uint256)",
+  // "function testPayble_10(" +
+  // "        address _executor_address," +
+  // "        uint256 _deal_length_in_blocks," +
+  // "        uint256 _proof_frequency_in_blocks," +
+  // "        uint256 _bounty," +
+  // "        uint256 _collateral," +
+  // "        address _erc20_token_denomination," +
+  // "        uint256 _file_size," +
+  // "        string calldata _file_cid," +
+  // "        string calldata _file_blake3" +
+  // "    ) public payable returns (uint256)",
 
     // An Event to be emitted when a Deal is created
   "event DealCreated(" +
@@ -122,13 +122,33 @@ export class DealMaker {
     public generateDealProposal(file: File, cid: string = '', blake3: string = ''): DealProposal {
         // TODO: Check if this is right
         let num_tib = (file.size / Math.pow(1024, 4))
+        // TODO: Figure out standard units for Bounty and Collateral
+        let bounty, collateral;
+        try {
+            bounty = ethers.utils.parseUnits(
+              (this.options.deal_configuration.bounty_per_tib).toString(), 18
+            ).mul(num_tib);
+        } catch (error) {
+            // TODO: Settle on a minimum bounty
+            // This is like 1 e -18
+            console.log("Bounty is too small: ", error);
+            bounty = BigNumber.from(1)
+        }
+        try {
+            collateral = ethers.utils.parseUnits(
+                (this.options.deal_configuration.collateral_per_tib).toString(), 18
+            ).mul(num_tib);
+        } catch (error) {
+            console.log("Collateral is too small: ", error);
+            collateral = BigNumber.from(1)
+        }
         return {
             executor_address: ethers.utils.getAddress(this.options.deal_configuration.executor_address),
             deal_length_in_blocks: this.options.deal_configuration.deal_length_in_blocks,
             proof_frequency_in_blocks: this.options.deal_configuration.proof_frequency_in_blocks,
             // TODO: NEed to do this right
-            bounty: 1, //this.options.deal_configuration.bounty_per_tib * num_tib,
-            collateral: 1,//this.options.deal_configuration.collateral_per_tib * num_tib,
+            bounty: bounty.toNumber(), //1, //this.options.deal_configuration.bounty_per_tib * num_tib,
+            collateral: collateral.toNumber(), //1,//this.options.deal_configuration.collateral_per_tib * num_tib,
             erc20_token_denomination: ethers.utils.getAddress(this.options.deal_configuration.erc20_token_denomination),
             file_size: file.size,
             file_cid: cid,
@@ -222,11 +242,11 @@ export class DealMaker {
         // Connect the Contract to the signer.
         const contractWithSigner = contract.connect(signer);
         // Submit the transaction to the contract.
-        let txResponse = await contractWithSigner.testPayble_10(
+        let txResponse = await contractWithSigner.createDeal(
           ...Object.values(dealProposal),
           {
               gasLimit: ethers.utils.parseUnits('3000000', 'wei'),
-              gasPrice: ethers.utils.parseUnits('50', 'gwei'),
+              gasPrice: ethers.utils.parseUnits('70', 'gwei'),
               //     value: ethers.utils.parseUnits('0', 'wei')
           }
         ).catch(error => {
@@ -270,8 +290,8 @@ export type DealProposal = {
     proof_frequency_in_blocks: number; // The number of blocks between each proof
 
     // The amount of tokens that the deal will be worth
-    bounty: number; // The price of the deal in the Token, in $ per Byte
-    collateral: number; // The amount of collateral in Ether, in $ per Byte
+    bounty: BigNumber; // The price of the deal in the Token, in $ per Byte
+    collateral: BigNumber; // The amount of collateral in Ether, in $ per Byte
     erc20_token_denomination: string; // The Token denomination for the collateral
 
     // File data
@@ -365,15 +385,6 @@ export async function getDealStatus(dealId: string): Promise<string> {
 }
 
 /**
- * A mapping for extracting the deal from the Banyan smart contract.
- */
-const getDealReturnMapping = {
-    'deal_status': {}
-}
-
-
-
-/**
  * @description Get the on-chain deal on-chain its ID
  * @param dealId
  * @returns {Promise<Deal>}
@@ -421,8 +432,9 @@ export async function getDeal(dealId: string): Promise<Deal> {
             deal_start_block: data[3].toString(),
             deal_length_in_blocks: data[4].toString(),
             proof_frequency_in_blocks: data[5].toString(),
-            bounty: data[6].toString(),
-            collateral: data[7].toString(),
+            // These values are formatted as BigNumbers
+            bounty: Number(ethers.utils.formatUnits(data[6], 18)),
+            collateral: Number(ethers.utils.formatUnits(data[7], 18)),
             erc20_token_denomination: data[8],
             file_size: data[9].toString(),
             file_cid: data[10],
