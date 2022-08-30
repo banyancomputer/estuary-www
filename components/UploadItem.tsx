@@ -161,50 +161,35 @@ export default class UploadItem extends React.Component<any> {
   }
 
   submitDeal = async () => {
-    this.setState({dealInProgress: true});
+    this.setState({...this.state, dealInProgress: true});
     let {estuaryId} = this.state.fileStagedResponse;
     let {dealProposal} = this.state;
     let dealMaker = this.props.dealMaker;
     // Submit the DealProposal to chain
     let dealId = await
-      dealMaker.submitDealProposal(dealProposal).then(() => {
-        this.setState({
-          ...this.state,
-          dealSubmitted: true,
-        });
-      }).catch((error) => {
+      dealMaker.submitDealProposal(dealProposal).catch((error) => {
+        console.log(error);
+        console.log(error.message)
         alert("Could not submit deal proposal: " + error.message);
-        this.setState({
-          ...this.state,
-          dealInProgress: false,
-        });
-        return;
+        return null;
       });
     console.log("Deal ID: ", dealId)
     // TODO: Figure out return type
-    if (!dealId) {
-      alert("Invalid Deal ID");
-      this.setState({
-        ...this.state,
-        dealInProgress: false,
-      });
-      return;
+    if (dealId) {
+      // Update the dealId of the file in Estuary.
+      await dealMaker.updateDealId(estuaryId, dealId).then(() => {
+        this.setState({...this.state, dealSubmitted: true});
+      }).catch((error) => {
+        // throw new Error(error);
+        alert("Could not update dealId in Estuary: " + error +
+          "- EstuaryId: " + estuaryId + " - DealId: " + dealId
+        );
+        return null;
+      })
     }
-    // Update the dealId of the file in Estuary.
-    dealId = await dealMaker.updateDealId(estuaryId, dealId).catch((error) => {
-      // throw new Error(error);
-      alert("Could not update dealId in Estuary: " + error +
-        "- EstuaryId: " + estuaryId + " - DealId: " + dealId
-      );
-      this.setState({
-        ...this.state,
-        dealInProgress: false,
-      });
-      this.setState({
-        ...this.state,
-        dealInProgress: false,
-      });
-      return;
+    this.setState({
+      ...this.state,
+      dealInProgress: false
     });
   }
 

@@ -6,7 +6,7 @@ import WalletConnect from "@walletconnect/web3-provider";
  * */
 
 /* Endpoints and Contract Addresses */
-export const default_executor_address = '0x0000000000000000000000000000000000000000';
+export const default_executor_address = '0x1000000000000000000000000000000000000000';
 export const eth_blocks_per_year = 365 * 6344; // TODO: Find a better way to do this
 export const USDC_ADDRESS = '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174';
 

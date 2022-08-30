@@ -9,7 +9,7 @@ import {web3ModalConfig} from "@common/siwe";
 
 // TODO: Did you know that Env variables in Next.js are extremely annoying?
 // TODO: This is a temporary fix until we can figure out how to use them properly.
-const BanyanContractAddress  = '0x9B6F0b095159E5670F5433ED640515D4eaA1Ed69' || '0x0000000000000000000000000000000000000000';
+const BanyanContractAddress  = '0x399A5607362223fa86E2101b36254edcf97De76B' || '0x0000000000000000000000000000000000000000';
 
 // TODO: This needs to be refactored to use the Banyan Contract correctly
 const BanyanContractABI = [
@@ -23,10 +23,22 @@ const BanyanContractABI = [
     "   string _erc20_token_denomination," +
     "   uint256 _file_size, " +
     "   string calldata _file_cid, " +
-    "   string calldata _file_blake3, " +
+    "   string calldata _file_blake3 " +
     ") public payable returns (uint256)",
 
-  // An Event to be emitted when a Deal is created
+  "function testPayble_10(" +
+  "        address _executor_address," +
+  "        uint256 _deal_length_in_blocks," +
+  "        uint256 _proof_frequency_in_blocks," +
+  "        uint256 _bounty," +
+  "        uint256 _collateral," +
+  "        address _erc20_token_denomination," +
+  "        uint256 _file_size," +
+  "        string calldata _file_cid," +
+  "        string calldata _file_blake3" +
+  "    ) public payable returns (uint256)",
+
+    // An Event to be emitted when a Deal is created
   "event DealCreated(" +
     "   address indexed creator_address, " +
     "   uint256 indexed dealId, " +
@@ -111,16 +123,16 @@ export class DealMaker {
         // TODO: Check if this is right
         let num_tib = (file.size / Math.pow(1024, 4))
         return {
-            executor_address: this.options.deal_configuration.executor_address,
+            executor_address: ethers.utils.getAddress(this.options.deal_configuration.executor_address),
             deal_length_in_blocks: this.options.deal_configuration.deal_length_in_blocks,
             proof_frequency_in_blocks: this.options.deal_configuration.proof_frequency_in_blocks,
             // TODO: NEed to do this right
             bounty: 1, //this.options.deal_configuration.bounty_per_tib * num_tib,
             collateral: 1,//this.options.deal_configuration.collateral_per_tib * num_tib,
-            erc20_token_denomination: this.options.deal_configuration.erc20_token_denomination,
+            erc20_token_denomination: ethers.utils.getAddress(this.options.deal_configuration.erc20_token_denomination),
             file_size: file.size,
             file_cid: cid,
-            file_blake3: blake3,
+            file_blake3: blake3
         } as DealProposal;
     };
 
@@ -201,13 +213,7 @@ export class DealMaker {
          */
         console.log("Initializing Contract...")
         // Initialize a Contract instance to interact with the Smart Contract.
-        const contract = new ethers.Contract(BanyanContractAddress, BanyanContractABI, provider)
-        // Get the gas estimate for the transaction.
-        const gasEstimate = await contract.estimateGas.createDeal(
-          ...Object.values(dealProposal), {gasLimit: BigNumber.from(3000000)}
-        );
-        // Initialize a filter to catch the DealCreated event
-        const filter = contract.filters.DealCreated(signerAddress, null)
+        const contract = new ethers.Contract(BanyanContractAddress, BanyanContractABI, provider);
 
         /**
          * Interact with the contract in order to trigger a state change
@@ -215,38 +221,26 @@ export class DealMaker {
         console.log("Submitting Transaction...")
         // Connect the Contract to the signer.
         const contractWithSigner = contract.connect(signer);
-        // Submit the deal proposal to the Banyan network as an offer
-        let txResponse = await contractWithSigner.createDeal(
-          ...Object.values(
-            dealProposal
-          ), {
-            gasLimit: ethers.utils.parseUnits('100000', 'wei'),
-            gasPrice: ethers.utils.parseUnits('1', 'gwei'),
-            value: ethers.utils.parseUnits('1', 'wei')
+        // Submit the transaction to the contract.
+        let txResponse = await contractWithSigner.testPayble_10(
+          ...Object.values(dealProposal),
+          {
+              gasLimit: ethers.utils.parseUnits('3000000', 'wei'),
+              gasPrice: ethers.utils.parseUnits('50', 'gwei'),
+              //     value: ethers.utils.parseUnits('0', 'wei')
           }
         ).catch(error => {
-            console.log("Error Submitting proposal to chain: ", error);
             error.message = "Error Submitting proposal to chain: " + error.message +
               " - Contract Address: " + contract.address;
+            console.log("Error Submitting proposal to chain: ", error);
             throw error;
         });
-
+        // Wait for the transaction to be mined.
         let txReceipt = await txResponse.wait();
         console.log("Transaction Receipt: ", txReceipt);
-        let dealId = txReceipt.events.find(event => event.event === 'DealCreated').args.dealId;
+        let dealId = txReceipt.events.find(event => event.event === 'DealCreated').args.dealId.toNumber();
         console.log("Deal ID: ", dealId);
         return dealId;
-        /**
-         * Wait for the transaction to be mined and return the ID of the DealProposal.
-         * Listen for the DealCreated event to be emitted by the Smart Contract.
-         */
-        // console.log("Listening for event...")
-        // let ret = 0;
-        // await contract.once(filter, (creator_address, dealId, event) => {
-        //     console.log("Received event: ", event)
-        //     ret = dealId;
-        // });
-        // return ret.toString();
     }
 
     /**
@@ -272,7 +266,7 @@ export class DealMaker {
 export type DealProposal = {
     executor_address: string; // The address of the Executor to propose the deal to
 
-    deal_length_in_blocks: number; // The number of blocks the deal will last for
+    deal_length_in_blocks: number;//number; // The number of blocks the deal will last for
     proof_frequency_in_blocks: number; // The number of blocks between each proof
 
     // The amount of tokens that the deal will be worth
