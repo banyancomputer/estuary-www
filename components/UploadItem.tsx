@@ -12,6 +12,8 @@ import Cookies from 'js-cookie';
 import ProgressBlock from '@components/ProgressBlock';
 import ActionRow from '@components/ActionRow';
 import LoaderSpinner from '@components/LoaderSpinner';
+import { addressToDenomination } from '@common/banyan';
+import { ethers } from 'ethers';
 
 export class PinStatusElement extends React.Component<any> {
   state = { pinned: false, delegates: ['none'] };
@@ -75,6 +77,7 @@ export default class UploadItem extends React.Component<any> {
     // staging: !this.props.file.estimation,
     fileStagedResponse: null,
     dealProposal: this.props.upload.dealProposal,
+    dealInProgress: false,
     dealSubmitted: false,
   };
 
@@ -160,27 +163,35 @@ export default class UploadItem extends React.Component<any> {
   }
 
   submitDeal = async () => {
+    this.setState({...this.state, dealInProgress: true});
     let {estuaryId} = this.state.fileStagedResponse;
     let {dealProposal} = this.state;
     let dealMaker = this.props.dealMaker;
     // Submit the DealProposal to chain
     let dealId = await
-      dealMaker.submitDealProposal(dealProposal).then(() => {
-        this.setState({
-          ...this.state,
-          dealSubmitted: true,
-        });
-      }).catch((error) => {
-        alert("Could not submit deal proposal: " + error);
-        return;
+      dealMaker.submitDealProposal(dealProposal).catch((error) => {
+        console.log(error);
+        console.log(error.message)
+        alert("Could not submit deal proposal: " + error.message);
+        return null;
       });
-    // Update the dealId of the file in Estuary.
-    dealId = await dealMaker.updateDealId(estuaryId, dealId).catch((error) => {
-      // throw new Error(error);
-      alert("Could not update dealId in Estuary: " + error +
-        "- EstuaryId: " + estuaryId + " - DealId: " + dealId
-      );
-      return;
+    console.log("Deal ID: ", dealId)
+    // TODO: Figure out return type
+    if (dealId) {
+      // Update the dealId of the file in Estuary.
+      await dealMaker.updateDealId(estuaryId, dealId).then(() => {
+        this.setState({...this.state, dealSubmitted: true});
+      }).catch((error) => {
+        // throw new Error(error);
+        alert("Could not update dealId in Estuary: " + error +
+          "- EstuaryId: " + estuaryId + " - DealId: " + dealId
+        );
+        return null;
+      })
+    }
+    this.setState({
+      ...this.state,
+      dealInProgress: false
     });
   }
 
@@ -218,11 +229,17 @@ export default class UploadItem extends React.Component<any> {
                     {this.props.upload.file.name} staged to our node and ready for hosting!
                   </ActionRow>
                   {this.state.dealProposal ? (
-                    // TODO: Figure out how to make this inline with the above ActionRow.
-                    <div className={styles.right}>
-                       <span className={styles.button} onClick={this.submitDeal}>
-                         Submit Deal
-                       </span>
+                    <div>
+                      {!this.state.dealInProgress ? (
+                      // TODO: This button neeeds to be disabled if the deal is in progress.
+                      <div className={styles.right}>
+                         <span className={styles.button} onClick={this.submitDeal}>
+                           Submit Deal
+                         </span>
+                      </div>
+                      ) : (
+                        <LoaderSpinner />
+                      ) }
                     </div>
                   ) : null }
                 </div>
@@ -274,7 +291,7 @@ export default class UploadItem extends React.Component<any> {
                 <ActionRow>{U.bytesToSize(this.props.upload.file.size)}</ActionRow>
                 { this.state.dealProposal.bounty ? (
                   <ActionRow>
-                    Estimated cost: {this.state.dealProposal.bounty} {this.state.dealProposal.erc20_token_denomination}
+                    Estimated cost: {ethers.utils.formatUnits(this.state.dealProposal.bounty, 18)} {addressToDenomination(this.state.dealProposal.erc20_token_denomination)}
                   </ActionRow>
                 ) : (
                   <ActionRow>{this.props.upload.file.name}: no bounty estimation</ActionRow>

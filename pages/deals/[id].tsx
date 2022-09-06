@@ -35,7 +35,24 @@ function DealPage(props: any) {
   const [state, setState] = React.useState({deal: null});
   React.useEffect(() => {
     const run = async () => {
-      let deal = await B.getDeal(props.id);
+      let deal = await B.getDeal(props.id).catch((err) => {
+        alert("Error getting deal: " + err);
+        return {
+          // For now, return a default deal.
+          deal_status: B.DealStatus.NON,
+          creator_address: '0x0',
+          executor_address: '0x0',
+          deal_start_block: 0,
+          deal_length_in_blocks: 0,
+          proof_frequency_in_blocks: 0,
+          bounty: 0,
+          collateral: 0,
+          erc20_token_denomination: '0x0',
+          file_size: 0,
+          file_cid: 'NAN',
+          file_blake3: 'NAN'
+        };
+      });
       setState({deal});
     };
 
@@ -50,16 +67,18 @@ function DealPage(props: any) {
         <h1>Deal {props.id}</h1>
         {state.deal ?
           <div>
-            <P style={{ marginTop: 16 }}>Deal Start Block: {state.deal.deal_start_block}</P>
-            <P style={{ marginTop: 16 }}>Deal Length in Blocks: {state.deal.deal_length_in_blocks}</P>
-            <P style={{ marginTop: 16 }}>Proof Frequency in Blocks: {state.deal.proof_frequency_in_blocks}</P>
-            <P style={{ marginTop: 16 }}>Deal Bounty: {state.deal.bounty}</P>
-            <P style={{ marginTop: 16 }}>Deal Collateral: {state.deal.collateral}</P>
-            <P style={{ marginTop: 16 }}>Token Address: {state.deal.erc20_token_denomination}</P>
-            <P style={{ marginTop: 16 }}>File Size: {state.deal.file_size}</P>
-            <P style={{ marginTop: 16 }}>File CID: {state.deal.file_cid}</P>
-            <P style={{ marginTop: 16 }}>File Blake3 Hash: {state.deal.file_blake3}</P>
-            <P style={{ marginTop: 16 }}>Deal Status: {state.deal.status}</P>
+            <P>Deal status: {state.deal.deal_status}</P>
+            <P>Creator address: {state.deal.creator_address}</P>
+            <P>Executor address: {state.deal.executor_address}</P>
+            <P>Deal Start Block: {state.deal.deal_start_block}</P>
+            <P>Deal Length in Blocks: {state.deal.deal_length_in_blocks}</P>
+            <P>Proof Frequency in Blocks: {state.deal.proof_frequency_in_blocks}</P>
+            <P>Deal Bounty: {state.deal.bounty}</P>
+            <P>Deal Collateral: {state.deal.collateral}</P>
+            <P>Token Address: {state.deal.erc20_token_denomination}</P>
+            <P>File Size: {state.deal.file_size}</P>
+            <P>File CID: {state.deal.file_cid}</P>
+            <P>File Blake3 Hash: {state.deal.file_blake3}</P>
           </div>
           :
           <LoaderSpinner />

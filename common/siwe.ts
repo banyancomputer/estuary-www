@@ -23,7 +23,7 @@ export const enum EthProviders {
  * Our provider options for the wallets we support.
  */
 export const web3ModalConfig = {
-    network: "rinkeby", // optional TODO: Make this configurable
+    // network: "rinkeby", // optional TODO: Make this configurable
     cacheProvider: true, // optional
     providerOptions: {
         walletconnect: {

@@ -22,7 +22,7 @@ import AsyncChild from 'react-async-child';
 
 import { H1, H2, H3, H4, P } from '@components/Typography';
 import Cookies from 'js-cookie';
-import {getDeal} from "@common/banyan";
+import { DealStatus, getDeal } from '@common/banyan';
 import LoaderSpinner from "@components/LoaderSpinner";
 import Link from "next/link";
 
@@ -77,7 +77,9 @@ export class FileItem extends React.Component<any> {
   componentDidMount() {
     const getDealStatus = () => {
       window.setTimeout(async () => {
-        const dealStatus = await B.getDealStatus(this.props.fs.dealId);
+        // This is a hacky way to error-handle the deal status.
+        console.log('Getting deal status for', this.props.fs.dealId);
+        const dealStatus = await B.getDealStatus(this.props.fs.dealId).catch(() => DealStatus.NON);
         if (dealStatus) {
           this.setState({ dealStatus });
           this.forceUpdate();
